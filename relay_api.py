@@ -16,7 +16,7 @@ dd = {"dsa": {"command": None, "command_mjd": None},
 
 class Command(BaseModel):
     command: str
-    mjd: float
+    command_mjd: float
 
 @app.get("/")
 def read_root():
@@ -46,7 +46,7 @@ def read_lwa(key):
 @app.put("/dsa")
 def set_dsa(command: Command, key: str):
     if key == RELAY_KEY:
-        dd['dsa'] = {"command": command.command, "command_mjd": command.mjd}
+        dd['dsa'] = {"command": command.command, "command_mjd": command.command_mjd}
         return f"Set dsa command: {command}"
     else:
         return "Bad key"
@@ -55,7 +55,7 @@ def set_dsa(command: Command, key: str):
 @app.put("/lwa")
 def set_lwa(command: Command, key: str):
     if key == RELAY_KEY:
-        dd['lwa'] = {"command": command.command, "command_mjd": command.mjd}
+        dd['lwa'] = {"command": command.command, "command_mjd": command.command_mjd}
         return f"Set lwa command: {command}"
 
     else:

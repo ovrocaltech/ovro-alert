@@ -21,9 +21,9 @@ Alert scenarios:
 We need a way for OVRO to pull commands in from external server. `relay_api.py` is a REST API that allows a `get` and `set` method for the paths `/dsa` and `/lwa`. Services on the DSA-110 and OVRO-LWA private networks can poll the API for alerts.
 
 The API can be run with:
-`uvicorn relay_api:app --reload`
+`uvicorn relay_api:app --reload --host <ip> --port 8001`
 
-Service is available at 127.0.0.1:8000. Docs at `/docs`.
+Service is available at 127.0.0.1:8001. Docs at `/docs`.
 
 ## OVRO-LWA
 
