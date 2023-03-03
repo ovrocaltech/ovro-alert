@@ -26,7 +26,7 @@ def get_lwa(password=RELAY_KEY):
     return resp.json()
 
 
-def put_lwa(command, args={}, password=RELAY_KEY):
+def set_lwa(command, args={}, password=RELAY_KEY):
     """ Put LWA command to relay.
     """
 

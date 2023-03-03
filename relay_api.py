@@ -65,9 +65,9 @@ def set_lwa(command: Command, key: str):
         return "Bad key"
 
 
-def set_sprite():
+def get_sprite():
     pass
 
 
-def get_sprite():
+def set_sprite():
     pass
