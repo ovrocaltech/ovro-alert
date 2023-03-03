@@ -10,7 +10,7 @@ else:
     RELAY_KEY = input("enter RELAY_KEY")
 
 ip = '131.215.200.144'  # major
-port = '8000'
+port = '8001'
 url = f'http://{ip}:{port}'
 
 
