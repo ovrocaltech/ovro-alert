@@ -17,14 +17,15 @@ dd = {"dsa": {"command": None, "command_mjd": None},
 class Command(BaseModel):
     command: str
     command_mjd: float
+    args: dict
 
 @app.get("/")
-def read_root():
+def get_root():
     return "ovro-alert: An API for alert-driven OVRO observations"
 
 
 @app.get("/dsa")
-def read_dsa(key):
+def get_dsa(key):
     if key == RELAY_KEY:
         dd2 = {"read_mjd": time.Time.now().mjd}
         dd2.update(dd["dsa"])
@@ -34,7 +35,7 @@ def read_dsa(key):
 
 
 @app.get("/lwa")
-def read_lwa(key):
+def get_lwa(key):
     if key == RELAY_KEY:
         dd2 = {"read_mjd": time.Time.now().mjd}
         dd2.update(dd["lwa"])
@@ -46,8 +47,9 @@ def read_lwa(key):
 @app.put("/dsa")
 def set_dsa(command: Command, key: str):
     if key == RELAY_KEY:
-        dd['dsa'] = {"command": command.command, "command_mjd": command.command_mjd}
-        return f"Set dsa command: {command}"
+        dd['dsa'] = {"command": command.command, "command_mjd": command.command_mjd,
+                     "args": command.args}
+        return f"Set dsa command: {command.command} with {command.args}"
     else:
         return "Bad key"
 
@@ -55,8 +57,17 @@ def set_dsa(command: Command, key: str):
 @app.put("/lwa")
 def set_lwa(command: Command, key: str):
     if key == RELAY_KEY:
-        dd['lwa'] = {"command": command.command, "command_mjd": command.command_mjd}
-        return f"Set lwa command: {command}"
+        dd['lwa'] = {"command": command.command, "command_mjd": command.command_mjd,
+                     "args": command.args}
+        return f"Set lwa command: {command.command} with {command.args}"
 
     else:
         return "Bad key"
+
+
+def set_sprite():
+    pass
+
+
+def get_sprite():
+    pass

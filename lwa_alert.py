@@ -26,14 +26,14 @@ def get_lwa(password=RELAY_KEY):
     return resp.json()
 
 
-def put_lwa(command, password=RELAY_KEY):
+def put_lwa(command, args={}, password=RELAY_KEY):
     """ Put LWA command to relay.
     """
 
     path = '/lwa'
     headers = {"Accept": "application/json", 'Content-Type': 'application/json'}
     mjd = time.Time.now().mjd
-    dd = {"command": command, "command_mjd": mjd}
+    dd = {"command": command, "command_mjd": mjd, "args": args}
 
     resp = requests.put(url=url+path, headers=headers, data=json.dumps(dd),
                         params={'key': RELAY_KEY})
