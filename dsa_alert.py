@@ -26,8 +26,8 @@ def get_dsa(password=RELAY_KEY):
     return resp.json()
 
 
-def put_dsa(command, password=RELAY_KEY):
-    """ Put DSA command to relay.
+def set_dsa(command, password=RELAY_KEY):
+    """ Set DSA command to relay.
     """
 
     path = '/dsa'
