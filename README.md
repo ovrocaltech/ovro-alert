@@ -1,5 +1,5 @@
 # ovro-alert
-Code and services for sending, receiving, and using astronomical alerts.
+Code and services for sending, receiving, and using astronomical alerts at OVRO.
 
 Alert scenarios:
 - CHIME/FRB to DSA-110 -- Identify co-detections of non-repeating FRBs and alert to new repeating FRBs from CHIME
@@ -23,7 +23,7 @@ We need a way for OVRO to pull commands in from external server. `relay_api.py` 
 The API can be run with:
 `uvicorn relay_api:app --reload --host <ip> --port 8001`
 
-Service is available at 127.0.0.1:8001. Docs at `/docs`.
+Service is available at <ip>:8001. Docs at `/docs`.
 
 ## OVRO-LWA
 
@@ -31,7 +31,7 @@ We need a way to poll the relay server and send commands for new OVRO-LWA observ
 - Trigger voltage buffer dump
 - Point a power beam at a target
 
-Toy relay polling script...
+An OVRO client example module is at `lwa_alert.py`.
 
 ## DSA-110
 
