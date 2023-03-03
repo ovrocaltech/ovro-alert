@@ -1,8 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[ ]:
-
 
 import gcn
 import healpy as hp
@@ -76,7 +71,7 @@ def process_gcn(payload, root):
 gcn.listen(handler=process_gcn)
 
 
-# In[ ]:
+
 
 
 
