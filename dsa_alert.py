@@ -1,7 +1,6 @@
 import requests
 import json
 from os import environ
-from time import sleep
 from astropy import time
 
 
@@ -13,11 +12,11 @@ else:
 ip = '131.215.200.144'  # major
 port = '8001'
 url = f'http://{ip}:{port}'
-path = '/lwa'
+path = '/dsa'
 
 
-def get_lwa(password=RELAY_KEY):
-    """ Get LWA command from relay.
+def get_dsa(password=RELAY_KEY):
+    """ Get DSA command from relay.
     """
 
     headers = {"Accept": "application/json"}
@@ -27,8 +26,8 @@ def get_lwa(password=RELAY_KEY):
     return resp.json()
 
 
-def set_lwa(command, args={}, password=RELAY_KEY):
-    """ Put LWA command to relay.
+def set_dsa(command, args={}, password=RELAY_KEY):
+    """ Set DSA command to relay.
     """
 
     headers = {"Accept": "application/json", 'Content-Type': 'application/json'}
@@ -41,8 +40,8 @@ def set_lwa(command, args={}, password=RELAY_KEY):
     return resp.status_code
 
 
-def poll_lwa(loop=5):
-    """ Poll the relay API for LWA commands.
+def poll_dsa(loop=5):
+    """ Poll the relay API for DSA commands.
     """
 
     dd = get_lwa()
@@ -55,4 +54,4 @@ def poll_lwa(loop=5):
         else:
             sleep(loop)
             continue
-        
+
