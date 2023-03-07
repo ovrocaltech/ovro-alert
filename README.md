@@ -16,7 +16,7 @@ Alert scenarios:
 - fastapi
 - pydantic
 - uvicorn
-
+- twistd
 
 ## Command relay
 
@@ -27,6 +27,25 @@ The API can be run with:
 
 Service is available at <ip>:8001. Docs at `/docs`.
 
+## CHIME-ALERTS
+
+We need a way to receive CHIME/FRB events to:
+- Identify and send slack notification for CHIME/FRB repeaters
+- Identify joint CHIME/DSA events
+- Repoint DSA-110 (human in the loop)
+- Automatically point beam at OVRO-LWA
+
+The VOEvent receiver uses `twistd` to run the `comet` broker, like this:
+`twistd -n comet -v --remote=chimefrb.physics.mcgill.ca --print-event --save-event --local-ivo=ivo://caltech/comet_broker`
+
+## LIGO-ALERTS
+
+We need a way to receive LIGO events to:
+- Notify on slack
+- Automatically trigger voltage buffer dump at OVRO-LWA
+
+
+
 ## OVRO-LWA
 
 We need a way to poll the relay server and send commands for new OVRO-LWA observations. Two kinds of observation must be supported:
@@ -36,10 +55,6 @@ We need a way to poll the relay server and send commands for new OVRO-LWA observ
 An OVRO client example module is at `lwa_alert.py`.
 
 ## DSA-110
-
-We need a way to poll the relay server with info about CHIME/FRB events to:
-- Identify and send slack notification for CHIME/FRB repeaters
-- Identify joint CHIME/DSA events
 
 We need a way to send DSA-110 discovery alerts to Swift/GUANO. Example implementation exists for [realfast](https://github.com/realfastvla/realfast/blob/main/realfast/util.py#L98).
 
