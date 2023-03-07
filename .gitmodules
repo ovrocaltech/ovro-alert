@@ -1,0 +1,3 @@
+[submodule "Comet"]
+	path = Comet
+	url = git@github.com:ovrocaltech/Comet.git
