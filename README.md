@@ -7,7 +7,7 @@ Alert scenarios:
 - DSA-110 to Swift/GUANO -- Search for prompt high-energy counterparts or afterglows from FRBs
 - DSA-110 to OVRO-LWA -- Search for ultra-wide band emission from non-repeating FRBs
 - LIGO to OVRO-LWA -- Search for prompt radio counterparts to neutron star mergers
-- CHIMERA to OVRO-LWA -- Dynamic co-observing to search for stellar flares
+- Flarescope and OVRO-LWA co-observing -- Automatic OVRO-LWA observing to search for stellar flares
 - Optical transients to SPRITE?
 - GREX to OVRO-LWA?
 
