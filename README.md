@@ -44,7 +44,11 @@ We need a way to receive LIGO events to:
 - Notify on slack
 - Automatically trigger voltage buffer dump at OVRO-LWA
 
+## Flarescope-ALERTS
 
+We need a way to start a beamformed observation at OVRO-LWA in coincidence with Flarescope:
+- Create SDF for a given (RA, Dec, start time, duration). Optionally set name or integration time.
+- Run SDF
 
 ## OVRO-LWA
 
@@ -59,3 +63,10 @@ An OVRO client example module is at `lwa_alert.py`.
 We need a way to send DSA-110 discovery alerts to Swift/GUANO. Example implementation exists for [realfast](https://github.com/realfastvla/realfast/blob/main/realfast/util.py#L98).
 
 We need a way to send DSA-110 discovery alerts to OVRO-LWA. This could be done via `relay_api.py`.
+
+
+## Assumptions and Rules
+- major hosts processes for relay plus one per telescope
+- Multiple telescope trigger processes may watch the same relay field (e.g., for different responses by OVRO-LWA)
+- Either response to a command must be faster than update frequency or we need multiple relay fields (e.g., "lwa-ligo" and "lwa-flarescope").
+- Telescope trigger code should be aware of telescope state (e.g., don't reconfigure lwa x-engine if already configured)
