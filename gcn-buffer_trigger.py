@@ -1,6 +1,6 @@
 import gcn
 import datetime
-from .. import lwa_alert
+import lwa_alert
 
 # Define thresholds
 FAR_THRESH = 3.17e-9 # 1 event per decade
