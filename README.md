@@ -16,7 +16,10 @@ Alert scenarios:
 - fastapi
 - pydantic
 - uvicorn
-- twistd
+- twisted
+- voevent-parse
+- slack_sdk
+- astropy
 
 ## Command relay
 
