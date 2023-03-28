@@ -73,7 +73,9 @@ We need a way to send DSA-110 discovery alerts to OVRO-LWA. This could be done v
 - Telescope trigger code should be aware of telescope state (e.g., don't reconfigure lwa x-engine if already configured)
 
 ## Protocol
+  
 | path | command | args |
+| ---  | ------- | ---- |
 | /lwa | trigger | (metadata) |
 | /lwa | powerbeam | RA, Dec, start time, duration, beamnum |
 | /dsa | slew? | elevation |
