@@ -44,10 +44,10 @@ def poll_dsa(loop=5):
     """ Poll the relay API for DSA commands.
     """
 
-    dd = get_lwa()
+    dd = get_dsa()
     while True:
         mjd = time.Time.now().mjd
-        dd2 = get_lwa()
+        dd2 = get_dsa()
         if dd2["command_mjd"] != dd["command_mjd"]:
             dd = dd2.copy()
             print(f"New command: {dd}")
