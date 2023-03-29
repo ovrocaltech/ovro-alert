@@ -51,6 +51,7 @@ We need a way to receive LIGO events to:
 
 We need a way to start a beamformed observation at OVRO-LWA in coincidence with Flarescope:
 - Create SDF for a given (RA, Dec, start time, duration). Optionally set name or integration time.
+- Ensure beams are calibrated
 - Run SDF
 
 ## OVRO-LWA
@@ -73,3 +74,16 @@ We need a way to send DSA-110 discovery alerts to OVRO-LWA. This could be done v
 - Multiple telescope trigger processes may watch the same relay field (e.g., for different responses by OVRO-LWA)
 - Either response to a command must be faster than update frequency or we need multiple relay fields (e.g., "lwa-ligo" and "lwa-flarescope").
 - Telescope trigger code should be aware of telescope state (e.g., don't reconfigure lwa x-engine if already configured)
+
+## Protocol
+  
+| path | command | args |
+| ---  | ------- | ---- |
+| /lwa | trigger | (metadata) |
+| /lwa | powerbeam | RA, Dec, start time, duration, beamnum |
+| /dsa | slew? | elevation |
+| /sprite? | slew? | RA, Dec |
+
+Outside of relay:
+- CHIME/FRB alerts received and sent to slack directly.
+- DSA-110 alerts sent to Swift/GUANO directly.
