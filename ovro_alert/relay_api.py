@@ -12,8 +12,8 @@ else:
 app = FastAPI()
 
 dd = {"dsa": {"command": None, "command_mjd": None},
-      "lwa": {"command": None, "command_mjd": None}}
-      "swift": {"command": None, "command_mjd": None}}
+      "lwa": {"command": None, "command_mjd": None},
+      "swift": {"command": None, "command_mjd": None},
       "sprite": {"command": None, "command_mjd": None}}
 
 class Command(BaseModel):

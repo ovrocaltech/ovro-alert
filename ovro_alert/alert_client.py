@@ -19,26 +19,26 @@ class AlertClient():
 
         self.ip = ip
         self.port = port
-        self.url = f'http://{self.ip}:{self.port}'
         self.route = route
+        self.fullroute = f'http://{self.ip}:{self.port}/{self.route}'
         
-        def get(self, password=RELAY_KEY):
-            """ Get command from relay server.
-            """
+    def get(self, password=RELAY_KEY):
+        """ Get command from relay server.
+        """
 
-            headers = {"Accept": "application/json"}
-            resp = requests.get(url=self.url+self.route, headers=headers, params={'key': RELAY_KEY})
-            return resp.json()
+        headers = {"Accept": "application/json"}
+        resp = requests.get(url=self.fullroute, headers=headers, params={'key': RELAY_KEY})
+        return resp.json()
 
-        def set(self, command, args={}, password=RELAY_KEY):
-            """ Put command to relay.
-            """
+    def set(self, command, args={}, password=RELAY_KEY):
+        """ Put command to relay.
+        """
 
-            headers = {"Accept": "application/json", 'Content-Type': 'application/json'}
-            mjd = time.Time.now().mjd
-            dd = {"command": command, "command_mjd": mjd, "args": args}
+        headers = {"Accept": "application/json", 'Content-Type': 'application/json'}
+        mjd = time.Time.now().mjd
+        dd = {"command": command, "command_mjd": mjd, "args": args}
 
-            resp = requests.put(url=self.url+self.route, headers=headers, data=json.dumps(dd),
-                                params={'key': RELAY_KEY})
+        resp = requests.put(url=self.fullroute, headers=headers, data=json.dumps(dd),
+                            params={'key': RELAY_KEY})
 
-            return resp.status_code
+        return resp.status_code
