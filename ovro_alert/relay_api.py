@@ -13,6 +13,8 @@ app = FastAPI()
 
 dd = {"dsa": {"command": None, "command_mjd": None},
       "lwa": {"command": None, "command_mjd": None}}
+      "swift": {"command": None, "command_mjd": None}}
+      "sprite": {"command": None, "command_mjd": None}}
 
 class Command(BaseModel):
     command: str
@@ -34,22 +36,22 @@ def get_dsa(key):
         return "Bad key"
 
 
-@app.get("/lwa")
-def get_lwa(key):
-    if key == RELAY_KEY:
-        dd2 = {"read_mjd": time.Time.now().mjd}
-        dd2.update(dd["lwa"])
-        return dd2
-    else:
-        return "Bad key"
-
-
 @app.put("/dsa")
 def set_dsa(command: Command, key: str):
     if key == RELAY_KEY:
         dd['dsa'] = {"command": command.command, "command_mjd": command.command_mjd,
                      "args": command.args}
         return f"Set dsa command: {command.command} with {command.args}"
+    else:
+        return "Bad key"
+
+
+@app.get("/lwa")
+def get_lwa(key):
+    if key == RELAY_KEY:
+        dd2 = {"read_mjd": time.Time.now().mjd}
+        dd2.update(dd["lwa"])
+        return dd2
     else:
         return "Bad key"
 
@@ -65,9 +67,31 @@ def set_lwa(command: Command, key: str):
         return "Bad key"
 
 
+@app.get("/swift")
+def get_swift(key):
+    if key == RELAY_KEY:
+        dd2 = {"read_mjd": time.Time.now().mjd}
+        dd2.update(dd["swift"])
+        return dd2
+    else:
+        return "Bad key"
+
+
+@app.put("/swift")
+def set_swift(command: Command, key: str):
+    if key == RELAY_KEY:
+        dd['swift'] = {"command": command.command, "command_mjd": command.command_mjd,
+                       "args": command.args}
+        return f"Set swift command: {command.command} with {command.args}"
+    else:
+        return "Bad key"
+
+
+@app.get("/sprite")
 def get_sprite():
     pass
 
 
+@app.put("/sprite")
 def set_sprite():
     pass
