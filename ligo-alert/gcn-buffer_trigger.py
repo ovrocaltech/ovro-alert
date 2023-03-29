@@ -1,9 +1,9 @@
 import gcn
 import datetime
-import ovro_alert
+from ovro_alert import alert_client
 
 
-lwac = ovro_alert.AlertClient('lwa')
+lwac = alert_client.AlertClient('lwa')
 
 # Define thresholds
 FAR_THRESH = 3.17e-9 # 1 event per decade
