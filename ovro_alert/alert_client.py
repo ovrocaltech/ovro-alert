@@ -11,14 +11,15 @@ else:
 
 
 class AlertClient():
-    def __init__(self, route):
+    def __init__(self, route, ip='131.215.200.144', port='8001'):
         """ Client for communicating via relay API.
         route defines channel for commuincation (e.g., sending to OVRO-LWA via "lwa")
+        Default ip:port are for server on major.
         """
 
-        self.ip = '131.215.200.144'  # major
-        self.port = '8001'
-        self.url = f'http://{ip}:{port}'
+        self.ip = ip
+        self.port = port
+        self.url = f'http://{self.ip}:{self.port}'
         self.route = route
         
         def get(self, password=RELAY_KEY):
