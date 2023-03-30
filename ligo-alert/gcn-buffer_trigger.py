@@ -1,6 +1,9 @@
 import gcn
 import datetime
-import lwa_alert
+from ovro_alert import alert_client
+
+
+lwac = alert_client.AlertClient('lwa')
 
 # Define thresholds
 FAR_THRESH = 3.17e-9 # 1 event per decade
@@ -64,7 +67,7 @@ def process_gcn(payload, root):
 
             # Write the current time in UTC in a human-readable format
             f.write("Created at (UTC): " + now.strftime("%Y-%m-%d %H:%M:%S"))
-            lwa_alert.set_lwa("trigger", args={'FAR': params['FAR'], 'BNS': params['BNS'], 'file_name': file_name})
+            lwac.set("trigger", args={'FAR': params['FAR'], 'BNS': params['BNS'], 'file_name': file_name})
 
 gcn.listen(handler=process_gcn)
 
