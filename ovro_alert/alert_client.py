@@ -26,7 +26,7 @@ class AlertClient():
         """ Get command from relay server.
         """
 
-        headers = {"Accept": "application/json"}
+        headers = {"Accept": "application/json", "Host": "ovro.caltech.edu"}
         resp = requests.get(url=self.fullroute, headers=headers, params={'key': RELAY_KEY})
         return resp.json()
 
@@ -34,7 +34,7 @@ class AlertClient():
         """ Put command to relay.
         """
 
-        headers = {"Accept": "application/json", 'Content-Type': 'application/json'}
+        headers = {"Accept": "application/json", 'Content-Type': 'application/json', "Host": "ovro.caltech.edu"}
         mjd = time.Time.now().mjd
         dd = {"command": command, "command_mjd": mjd, "args": args}
 
