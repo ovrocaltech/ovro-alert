@@ -1,8 +1,12 @@
 from os import environ
 from typing import Union
+
 from fastapi import FastAPI
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from pydantic import BaseModel
+
 from astropy import time
+
 
 if "RELAY_KEY" in environ:
     RELAY_KEY = environ["RELAY_KEY"]
@@ -10,6 +14,7 @@ else:
     RELAY_KEY = input("enter RELAY_KEY")
 
 app = FastAPI()
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=["example.com", "*.example.com"])
 
 dd = {"dsa": {"command": None, "command_mjd": None},
       "lwa": {"command": None, "command_mjd": None},
