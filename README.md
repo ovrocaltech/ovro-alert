@@ -70,10 +70,11 @@ We need a way to send DSA-110 discovery alerts to OVRO-LWA. This could be done v
 
 
 ## Assumptions and Rules
-- major hosts processes for relay plus one per telescope
+- Server major hosts processes for relay plus one per alert receiver (e.g., LIGO)
 - Multiple telescope trigger processes may watch the same relay field (e.g., for different responses by OVRO-LWA)
 - Either response to a command must be faster than update frequency or we need multiple relay fields (e.g., "lwa-ligo" and "lwa-flarescope").
 - Telescope trigger code should be aware of telescope state (e.g., don't reconfigure lwa x-engine if already configured)
+- Relay can also just hold info for insight to direct-sent triggers (e.g., DSA-110 to Swift)
 
 ## Protocol
   
@@ -82,8 +83,9 @@ We need a way to send DSA-110 discovery alerts to OVRO-LWA. This could be done v
 | /lwa | trigger | (metadata) |
 | /lwa | powerbeam | RA, Dec, start time, duration, beamnum |
 | /dsa | slew? | elevation |
+| /swift | frb | (parameters) |
 | /sprite? | slew? | RA, Dec |
 
 Outside of relay:
 - CHIME/FRB alerts received and sent to slack directly.
-- DSA-110 alerts sent to Swift/GUANO directly.
+- DSA-110 alerts sent to Swift/GUANO directly. See code at [dsa110-event](https://github.com/dsa110/dsa110-event/blob/main/event/cli.py#L145).
