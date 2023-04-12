@@ -29,7 +29,7 @@ class AlertClient():
         headers = {"Accept": "application/json", "Host": "ovro.caltech.edu"}
         resp = requests.get(url=self.fullroute, headers=headers, params={'key': RELAY_KEY})
         if resp.status_code != 200:
-            print(f'oops: {resp}'
+            print(f'oops: {resp}')
         return resp.json()
 
     def set(self, command, args={}, password=RELAY_KEY):
