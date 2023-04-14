@@ -1,11 +1,12 @@
 from time import sleep
 from astropy.time import Time
 from ovro_alert.alert_client import AlertClient
-
+from mnc import control
 
 class LWAAlertClient(AlertClient):
-    def __init__(self, pipeline):
-        self.pipeline = pipeline
+    def __init__(self, pipelines):
+	super().__init__('lwa')
+        self.pipelines = [p for p in pipelines if p.pipeline_id in [2, 3]]
         self.ntime_per_file = 1024
         self.nfile = 1
 
@@ -27,7 +28,12 @@ class LWAAlertClient(AlertClient):
     def trigger(self):
         """ Trigger voltage dump
         """
-        self.pipeline.triggered_dump.trigger(ntime_per_file=self.ntime_per_file, nfile=self.nfile, dump_path='/data0/')
+	path_map = {2: '/data0/', 3: '/data1/'}
+	for pipeline in self.pipelines:
+		if pipeline.pipeline_id in path_map:
+        		path = path_map[pipeline.pipeline_id]
+            		pipeline.triggered_dump.trigger(ntime_per_file=self.ntime_per_file, nfile=self.nfile, dump_path=path)
+
 
     def powerbeam(self):
         """ Observe with power beam
@@ -36,11 +42,9 @@ class LWAAlertClient(AlertClient):
 
 
 if __name__ == '__main__':
-    xhosts = ['lxdlwagpu02']
-    con = control.Controller('proj/lwa-shell/mnc_python/config/lwa_config_calim.yaml', xhosts=xhosts)
+    con = control.Controller()
     pipelines = con.pipelines
-    p = pipelines[0]
-    client = LWAAlertClient(p)
+    client = LWAAlertClient(pipelines)
     client.ntime_per_file = 24000
     client.nfile = 1
     client.poll(loop=5)
