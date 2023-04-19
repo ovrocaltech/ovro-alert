@@ -14,7 +14,7 @@ else:
     RELAY_KEY = input("enter RELAY_KEY")
 
 app = FastAPI()
-#app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*.caltech.edu"])
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*.caltech.edu"])
 
 dd = {"dsa": {"command": None, "command_mjd": None},
       "lwa": {"command": None, "command_mjd": None},
