@@ -21,6 +21,34 @@ Alert scenarios:
 - slack_sdk
 - astropy
 
+## Assumptions and Rules
+
+- Server hosts processes for relay plus one per alert receiver (e.g., LIGO) -- currently this is on "major"
+- Responsive clients poll a path on the relay (e.g., /lwa for messages of interest to OVRO-LWA)
+-- Alternatively, clients poll path for the sender (e.g., /chime for messages from CHIME/FRB)
+- Either response to a command must be faster than update frequency or we need multiple relay fields (e.g., "lwa-ligo" and "lwa-flarescope").
+- Telescope trigger code should be aware of telescope state (e.g., don't reconfigure lwa x-engine if already configured)
+- Relay can also just hold info for insight to direct-sent triggers (e.g., DSA-110 to Swift)
+
+## Protocol
+  
+| path | command | args |
+| ---  | ------- | ---- |
+| /lwa | trigger | (metadata) |
+| /lwa | powerbeam | RA, Dec, start time, duration, beamnum |
+| /dsa | CHIME FRB | RA, Dec, DM, TOA |
+
+An alternative would be to structure as events from a sender:
+
+| path | type | args |
+| ---  | ------- | ---- |
+| /ligo | test/event | TOA, FAR, BNS |
+| /chime | test/event | TOA, DM, RA, Dec |
+| /dsa  | test/event | TOA, DM, RA, Dec |
+| /flarescope | test/observation | start, duration, RA, Dec |
+
+Current implementation is structured as commands to a receiver.
+
 ## Command relay
 
 We need a way for OVRO to pull commands in from external server. `relay_api.py` is a REST API that allows a `get` and `set` method for the paths `/dsa` and `/lwa`. Services on the DSA-110 and OVRO-LWA private networks can poll the API for alerts.
@@ -29,6 +57,10 @@ The API can be run with:
 `uvicorn relay_api:app --reload --host <ip> --port 8001`
 
 Service is available at <ip>:8001. Docs at `/docs`.
+
+Outside of relay:
+- CHIME/FRB alerts received and sent to slack directly.
+- DSA-110 alerts sent to Swift/GUANO directly. See code at [dsa110-event](https://github.com/dsa110/dsa110-event/blob/main/event/cli.py#L145).
 
 ## CHIME-ALERTS
 
@@ -67,25 +99,3 @@ An OVRO client example module is at `lwa_alert.py`.
 We need a way to send DSA-110 discovery alerts to Swift/GUANO. Example implementation exists for [realfast](https://github.com/realfastvla/realfast/blob/main/realfast/util.py#L98).
 
 We need a way to send DSA-110 discovery alerts to OVRO-LWA. This could be done via `relay_api.py`.
-
-
-## Assumptions and Rules
-- Server major hosts processes for relay plus one per alert receiver (e.g., LIGO)
-- Multiple telescope trigger processes may watch the same relay field (e.g., for different responses by OVRO-LWA)
-- Either response to a command must be faster than update frequency or we need multiple relay fields (e.g., "lwa-ligo" and "lwa-flarescope").
-- Telescope trigger code should be aware of telescope state (e.g., don't reconfigure lwa x-engine if already configured)
-- Relay can also just hold info for insight to direct-sent triggers (e.g., DSA-110 to Swift)
-
-## Protocol
-  
-| path | command | args |
-| ---  | ------- | ---- |
-| /lwa | trigger | (metadata) |
-| /lwa | powerbeam | RA, Dec, start time, duration, beamnum |
-| /dsa | slew? | elevation |
-| /swift | frb | (parameters) |
-| /sprite? | slew? | RA, Dec |
-
-Outside of relay:
-- CHIME/FRB alerts received and sent to slack directly.
-- DSA-110 alerts sent to Swift/GUANO directly. See code at [dsa110-event](https://github.com/dsa110/dsa110-event/blob/main/event/cli.py#L145).
