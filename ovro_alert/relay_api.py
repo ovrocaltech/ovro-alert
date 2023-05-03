@@ -25,6 +25,7 @@ dd = {"dsa": {"command": None, "command_mjd": None, "test_mjd": None},
 class Command(BaseModel):
     command: str
     command_mjd: float
+#    test_mjd: float  # is this required?
     args: dict
 
 @app.get("/")

@@ -20,18 +20,19 @@ class LWAAlertClient(AlertClient):
         while True:
             mjd = Time.now().mjd
             dd2 = self.get()
-            print('.', end='')
+            print(".", end="")
             if dd2["command_mjd"] != dd["command_mjd"]:
                 dd = dd2.copy()
                 if dd2["command"] == "trigger":
+                    print("Received trigger command")
                     self.trigger()
                 elif dd2["command"] == "powerbeam":
+                    print("Received powerbeam command")
                     assert all(key in dd2["args"] for key in ["dm", "toa", "position"])
                     self.powerbeam(dd2["args"])
                 else:
-                    print(f'command {dd2["command"]} not recognized')
+                    print(f'Received unrecognized command {dd2["command"]}')
             else:
-                print(f'no updated time: {dd2["command_mjd"]} {dd["command_mjd"]}')
                 sleep(loop)
                 continue
 
@@ -44,6 +45,7 @@ class LWAAlertClient(AlertClient):
             if pipeline.pipeline_id in path_map:
                 path = path_map[pipeline.pipeline_id]
                 pipeline.triggered_dump.trigger(ntime_per_file=self.ntime_per_file, nfile=self.nfile, dump_path=path)
+        print(f'Triggered {len(self.pipelines)} pipelines')
 
     def powerbeam(self, dd2):
         """ Observe with power beam
@@ -57,8 +59,10 @@ class LWAAlertClient(AlertClient):
         toa = dd2["toa"]
         max_delay = 4.149*1e3 * dm * 12**(-2) # maximum delay for a specific value of DM at the lowest LWA frequency (12 MHz) in seconds
 
-        thread = threading.Thread(target=self.con.control_bf, kwargs={'num': 1, 'targetname': (RA, Dec), 'track': True})
-        thread.start()
+# slow way
+#        con.configure_xengine('dr1', calibratebeam=True)
+#        thread = threading.Thread(target=self.con.control_bf, kwargs={'num': 1, 'targetname': (RA, Dec), 'track': True})
+#        thread.start()
 
 	#Observe for the duration equal to maximum delay (duration is in ms)
         self.con.start_dr(recorders=['dr1'], duration=max_delay*1e3, time_avg=128)
@@ -66,7 +70,7 @@ class LWAAlertClient(AlertClient):
 	# Sleep for the duration + 10 sec, then stop the recording and the xengine
         sleep(max_delay + 10)
         self.con.stop_dr(recorders=['dr1'])
-
+#        con.stop_xengine
 
 if __name__ == '__main__':
     con = control.Controller()
