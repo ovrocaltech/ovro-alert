@@ -68,7 +68,9 @@ def process_gcn(payload, root):
 
             # Write the current time in UTC in a human-readable format
             f.write("Created at (UTC): " + now.strftime("%Y-%m-%d %H:%M:%S"))
+            print('sending to lwa relay server as "trigger"')
             lwac.set("trigger", args={'FAR': params['FAR'], 'BNS': params['BNS'], 'file_name': file_name})
+            print(f'sending to ligo relay server with role {root.attrib["role"]}')
             ligoc.set(root.attrib['role'], args={'FAR': params['FAR'], 'BNS': params['BNS'], 'file_name': file_name})
 gcn.listen(handler=process_gcn)
 
