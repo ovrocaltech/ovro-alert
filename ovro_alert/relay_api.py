@@ -82,13 +82,16 @@ def get_ligo(key):
     else:
         return "Bad key"
 
-
 @app.put("/ligo")
 def set_ligo(command: Command, key: str):
     if key == RELAY_KEY:
-        dd['ligo'] = {"command": command.command, "command_mjd": command.command_mjd,
-                       "args": command.args}
-        return f"Set LIGO event: {command.command} with {command.args}"
+        if command.command == 'test':
+            dd["ligo"].update({"test_mjd": command.command_mjd})
+            return f"Set LIGO test"
+        else:
+            dd["ligo"] = {"command": command.command, "command_mjd": command.command_mjd,
+                           "args": command.args}
+            return f"Set LIGO event: {command.command} with {command.args}"
     else:
         return "Bad key"
 

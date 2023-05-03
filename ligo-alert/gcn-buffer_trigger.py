@@ -4,6 +4,7 @@ from ovro_alert import alert_client
 
 
 lwac = alert_client.AlertClient('lwa')
+ligoc = alert_client.AlertClient('ligo')
 
 # Define thresholds
 FAR_THRESH = 3.17e-9 # 1 event per decade
@@ -68,7 +69,7 @@ def process_gcn(payload, root):
             # Write the current time in UTC in a human-readable format
             f.write("Created at (UTC): " + now.strftime("%Y-%m-%d %H:%M:%S"))
             lwac.set("trigger", args={'FAR': params['FAR'], 'BNS': params['BNS'], 'file_name': file_name})
-
+            ligoc.set(root.attrib['role'], args={'FAR': params['FAR'], 'BNS': params['BNS'], 'file_name': file_name})
 gcn.listen(handler=process_gcn)
 
 
