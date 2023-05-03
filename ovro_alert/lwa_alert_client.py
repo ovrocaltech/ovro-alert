@@ -24,7 +24,7 @@ class LWAAlertClient(AlertClient):
                 dd = dd2.copy()
                 if dd2["command"] == "trigger":
                     self.trigger()
-		elif dd2["command"] == "CHIME FRB" and all(key in dd2 for key in ["dm", "toa", "position"]):
+		elif dd2["command"] == "powerbeam" and all(key in dd2 for key in ["dm", "toa", "position"]):
                     self.powerbeam(dd2)
             else:
                 sleep(loop)
@@ -55,7 +55,6 @@ class LWAAlertClient(AlertClient):
 	max_delay = 4.149*1e3 * dm * 12**(-2) # maximum delay for a specific value of DM at the lowest LWA frequency (12 MHz) in seconds
 
 
-        self.con.configure_xengine(recorders=['dr1'], calibratebeams=True)
     	thread = threading.Thread(target=self.con.control_bf, kwargs={'num': 1, 'targetname': (RA, Dec), 'track': True})
     	thread.start()
 	
