@@ -11,7 +11,7 @@ Alert scenarios:
 - Optical transients to SPRITE?
 - GREX to OVRO-LWA?
 
-![diagram of connections](drawio/diagram.png)
+![diagram of connections](drawio/diagram.drawio.png)
 
 ## Requirements
 - astropy
