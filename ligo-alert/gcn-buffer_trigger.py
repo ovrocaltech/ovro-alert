@@ -24,7 +24,7 @@ BNS_NSBH_THRESH = 0 # Either BNS or NSBH probability
     gcn.notice_types.LVC_UPDATE,
     gcn.notice_types.LVC_RETRACTION)
 
-def process_gcn(payload, root):
+def process_gcn(payload, root, write=False):
     
     # Read all of the VOEvent parameters from the "What" section.
     params = {elem.attrib['name']:
@@ -61,17 +61,20 @@ def process_gcn(payload, root):
         now = datetime.datetime.utcnow()
 
         # Open a new file in write mode
-        file_name = params['GraceID']+'_ligo.txt'
-        with open(file_name, "w") as f:
-            # Write the text "Trigger the buffer,"
-            f.write("Trigger the buffer,\n")
+        if write:
+            file_name = params['GraceID']+'_ligo.txt'
+            with open(file_name, "w") as f:
+                # Write the text "Trigger the buffer,"
+                f.write("Trigger the buffer,\n")
 
-            # Write the current time in UTC in a human-readable format
-            f.write("Created at (UTC): " + now.strftime("%Y-%m-%d %H:%M:%S"))
-            print('sending to lwa relay server as "trigger"')
-            lwac.set("trigger", args={'FAR': params['FAR'], 'BNS': params['BNS'], 'file_name': file_name})
-            print(f'sending to ligo relay server with role {root.attrib["role"]}')
-            ligoc.set(root.attrib['role'], args={'FAR': params['FAR'], 'BNS': params['BNS'], 'file_name': file_name})
+                # Write the current time in UTC in a human-readable format
+                f.write("Created at (UTC): " + now.strftime("%Y-%m-%d %H:%M:%S"))
+
+        # Send to relay
+        print('sending to lwa relay server as "trigger"')
+        lwac.set("trigger", args={'FAR': params['FAR'], 'BNS': params['BNS'], 'file_name': file_name})
+        print(f'sending to ligo relay server with role {root.attrib["role"]}')
+        ligoc.set(root.attrib['role'], args={'FAR': params['FAR'], 'BNS': params['BNS'], 'file_name': file_name})
 gcn.listen(handler=process_gcn)
 
 
