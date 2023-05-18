@@ -20,19 +20,25 @@ class AlertClient():
         self.ip = ip
         self.port = port
         self.route = route
+
+    def fullroute(self, route=None):
+        """ Get full route as a string with option to overload route at end
+        """
+
+        route = route if route is not None else self.route
         self.fullroute = f'http://{self.ip}:{self.port}/{self.route}'
-        
-    def get(self, password=RELAY_KEY):
+
+    def get(self, password=RELAY_KEY, route=None):
         """ Get command from relay server.
         """
 
         headers = {"Accept": "application/json", "Host": "ovro.caltech.edu"}
-        resp = requests.get(url=self.fullroute, headers=headers, params={'key': RELAY_KEY})
+        resp = requests.get(url=self.fullroute(route=route), headers=headers, params={'key': RELAY_KEY})
         if resp.status_code != 200:
             print(f'oops: {resp}')
         return resp.json()
 
-    def set(self, command, args={}, password=RELAY_KEY):
+    def set(self, command, args={}, password=RELAY_KEY, route=None):
         """ Put command to relay.
         """
 
@@ -40,7 +46,7 @@ class AlertClient():
         mjd = time.Time.now().mjd
         dd = {"command": command, "command_mjd": mjd, "args": args}
 
-        resp = requests.put(url=self.fullroute, headers=headers, data=json.dumps(dd),
+        resp = requests.put(url=self.fullroute(route=route), headers=headers, data=json.dumps(dd),
                             params={'key': RELAY_KEY})
 
         return resp.status_code
