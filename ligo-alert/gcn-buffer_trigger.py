@@ -72,9 +72,9 @@ def process_gcn(payload, root, write=False):
 
         # Send to relay
         print('sending to lwa relay server as "trigger"')
-        lwac.set("trigger", args={'FAR': params['FAR'], 'BNS': params['BNS'], 'file_name': file_name})
+        lwac.set("trigger", args={'FAR': params['FAR'], 'BNS': params['BNS']})
         print(f'sending to ligo relay server with role {root.attrib["role"]}')
-        ligoc.set(root.attrib['role'], args={'FAR': params['FAR'], 'BNS': params['BNS'], 'file_name': file_name})
+        ligoc.set(root.attrib['role'], args={'FAR': params['FAR'], 'BNS': params['BNS']})
 gcn.listen(handler=process_gcn)
 
 
