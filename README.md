@@ -71,7 +71,7 @@ We need a way to receive CHIME/FRB events to:
 - Automatically point beam at OVRO-LWA
 
 The VOEvent receiver uses `twistd` to run the `comet` broker, like this:
-`twistd -n comet -v --remote=chimefrb.physics.mcgill.ca --print-event --save-event --local-ivo=ivo://caltech/comet_broker`
+`twistd -n comet -v --subscribe chimefrb.physics.mcgill.ca --save-event --local-ivo ivo://caltech/comet_broker`
 
 ## LIGO-ALERTS
 

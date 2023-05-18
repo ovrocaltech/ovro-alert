@@ -36,7 +36,7 @@ def process_gcn(payload, root, write=False):
     condition1 = root.attrib['role'] == 'test' and params['AlertType'] == 'EarlyWarning'
     condition2 = root.attrib['role'] == 'test' # IMPORTANT! for real observations set to 'observation' 
     if not (condition1 or condition2):
-        returnii
+        return
 
     # If event is retracted, print it.
     if params['AlertType'] == 'Retraction':
