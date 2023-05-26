@@ -86,15 +86,15 @@ class LWAAlertClient(AlertClient):
         Dec = float(position[1])
         dm = dd["dm"]
         toa = dd["toa"]
-        max_delay = 4.149*1e3 * dm * 12**(-2) # maximum delay for a specific value of DM at the lowest LWA frequency (12 MHz) in seconds
+        d0 = delay(dm, 1e9, 50)
 
 # slow way
 #        con.configure_xengine('dr3', calibratebeams=True, full=True)  # get beam control handlers
 #        thread = threading.Thread(target=self.con.control_bf, kwargs={'num': 1, 'targetname': (RA, Dec), 'track': True})
 #        thread.start()
 
-	#Observe for the duration equal to maximum delay (duration is in ms)
-        self.con.start_dr(recorders=['dr3'], duration=(max_delay+10)*1e3, time_avg=128)
+	#Observe for the delay plus a bit more (duration is in ms)
+        self.con.start_dr(recorders=['dr3'], duration=(d0+10)*1e3, time_avg=128)
         con.configure_xengine('dr3', calibratebeams=False, full=False)  # get beam control handlers
 #        self.con.control_bf(num=3, targetname=(RA, Dec), track=True)
         thread = threading.Thread(target=self.con.control_bf, kwargs={'num': 1, 'targetname': (RA, Dec), 'track': True})
