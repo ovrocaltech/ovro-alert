@@ -17,12 +17,13 @@ class LWAAlertClient(AlertClient):
         """ Poll the relay API for commands.
         """
 
-        ddc0 = self.get('chime')
-        ddl0 = self.get('ligo')
+        ddc0 = self.get(route='chime')
+        ddl0 = self.get(route='ligo')
         while True:
             mjd = Time.now().mjd
-            ddc = self.get('chime')
-            ddl = self.get('ligo')
+            ddc = self.get(route='chime')
+            ddl = self.get(route='ligo')
+            print(ddl)
             print(".", end="")
 
             if ddc["command_mjd"] != ddc0["command_mjd"]:
@@ -43,15 +44,16 @@ class LWAAlertClient(AlertClient):
                 if ddl["command"] == "observation":   # chime/ligo have command="observation" or "test"
                     print("Received LIGO event")
                     # TODO: check for sources we want to observe (e.g., by name or properties)
-                    self.trigger(ddl["args"])
+                    self.trigger()
                 elif ddl["command"] == "test":
                     print("Received LIGO test")
-                    self.trigger('test')
+                    if 'nsamp' in ddl:
+                        self.trigger(nsamp=ddl['nsamp'])
             else:
+                print(ddl["command_mjd"], ddl0["command_mjd"])
                 sleep(loop)
-                continue
 
-    def trigger(self, dd):
+    def trigger(self, nsamp=None):
         """ Trigger voltage dump
         This method assumes it should trigger and figures out parameters from input.
         """
@@ -59,8 +61,8 @@ class LWAAlertClient(AlertClient):
         # TODO: select on -- is up? HasNS? Terrestrial?
 
         path_map = {2: '/data0/', 3: '/data1/'}
-        if dd == 'test':
-            dt = 1/1000
+        if nsamp is not None:
+            dt = nsamp/24000
         else:
             dt = delay(1000, 1e9, 50)
 
