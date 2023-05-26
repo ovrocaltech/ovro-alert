@@ -23,14 +23,13 @@ class LWAAlertClient(AlertClient):
             mjd = Time.now().mjd
             ddc = self.get(route='chime')
             ddl = self.get(route='ligo')
-            print(ddl)
             print(".", end="")
 
             if ddc["command_mjd"] != ddc0["command_mjd"]:
                 ddc0 = ddc.copy()
 
                 if ddc["command"] == "observation":   # chime/ligo have command="observation" or "test"
-                    print("Receive CHIME event")
+                    print("Received CHIME event")
                     assert all(key in ddc["args"] for key in ["dm", "toa", "position"])
                     if "known" in ddc["args"]:
                         # TODO: check for sources we want to observe (e.g., by name or properties)
@@ -50,7 +49,6 @@ class LWAAlertClient(AlertClient):
                     if 'nsamp' in ddl:
                         self.trigger(nsamp=ddl['nsamp'])
             else:
-                print(ddl["command_mjd"], ddl0["command_mjd"])
                 sleep(loop)
 
     def trigger(self, nsamp=None):
