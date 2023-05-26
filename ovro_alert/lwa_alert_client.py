@@ -5,6 +5,8 @@ from mnc import control
 import threading
 
 
+delay = lambda dm, f1, f2: 4.149 * 1e3 * dm * (f2 ** (-2) - f1 ** (-2))
+
 class LWAAlertClient(AlertClient):
     def __init__(self, con):
         super().__init__('lwa')
@@ -15,19 +17,19 @@ class LWAAlertClient(AlertClient):
         """ Poll the relay API for commands.
         """
 
-        ddc0 = self.get('chime')
-        ddl0 = self.get('ligo')
+        ddc0 = self.get(route='chime')
+        ddl0 = self.get(route='ligo')
         while True:
             mjd = Time.now().mjd
-            ddc = self.get('chime')
-            ddl = self.get('ligo')
+            ddc = self.get(route='chime')
+            ddl = self.get(route='ligo')
             print(".", end="")
 
             if ddc["command_mjd"] != ddc0["command_mjd"]:
                 ddc0 = ddc.copy()
 
                 if ddc["command"] == "observation":   # chime/ligo have command="observation" or "test"
-                    print("Receive CHIME event")
+                    print("Received CHIME event")
                     assert all(key in ddc["args"] for key in ["dm", "toa", "position"])
                     if "known" in ddc["args"]:
                         # TODO: check for sources we want to observe (e.g., by name or properties)
@@ -41,23 +43,30 @@ class LWAAlertClient(AlertClient):
                 if ddl["command"] == "observation":   # chime/ligo have command="observation" or "test"
                     print("Received LIGO event")
                     # TODO: check for sources we want to observe (e.g., by name or properties)
-                    self.trigger(ddl)
+                    self.trigger()
                 elif ddl["command"] == "test":
                     print("Received LIGO test")
-
+                    if 'nsamp' in ddl:
+                        self.trigger(nsamp=ddl['nsamp'])
             else:
                 sleep(loop)
-                continue
 
-    def trigger(self, dd):
+    def trigger(self, nsamp=None):
         """ Trigger voltage dump
         This method assumes it should trigger and figures out parameters from input.
         """
 
-        path_map = {2: '/data0/', 3: '/data1/'}
+        # TODO: select on -- is up? HasNS? Terrestrial?
 
+        path_map = {2: '/data0/', 3: '/data1/'}
+        if nsamp is not None:
+            dt = nsamp/24000
+        else:
+            dt = delay(1000, 1e9, 50)
+
+        # TODO: check disk space: 2.7 TB per DM=1000 event (at 50 MHz)
         # TODO: calculate length from input dict
-        ntime_per_file = 24000
+        ntime_per_file = int(dt*24000)   # 1/24000=41.666 microsec per sample
         nfile = 1
 
         for pipeline in self.pipelines:

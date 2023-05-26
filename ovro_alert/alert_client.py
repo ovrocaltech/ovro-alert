@@ -26,7 +26,7 @@ class AlertClient():
         """
 
         route = route if route is not None else self.route
-        self.fullroute = f'http://{self.ip}:{self.port}/{self.route}'
+        return f'http://{self.ip}:{self.port}/{route}'
 
     def get(self, password=RELAY_KEY, route=None):
         """ Get command from relay server.

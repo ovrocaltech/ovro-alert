@@ -3,7 +3,6 @@ import datetime
 from ovro_alert import alert_client
 
 
-lwac = alert_client.AlertClient('lwa')
 ligoc = alert_client.AlertClient('ligo')
 
 # Define thresholds
@@ -71,10 +70,12 @@ def process_gcn(payload, root, write=False):
                 f.write("Created at (UTC): " + now.strftime("%Y-%m-%d %H:%M:%S"))
 
         # Send to relay
-        print('sending to lwa relay server as "trigger"')
-        lwac.set("trigger", args={'FAR': params['FAR'], 'BNS': params['BNS']})
         print(f'sending to ligo relay server with role {root.attrib["role"]}')
-        ligoc.set(root.attrib['role'], args={'FAR': params['FAR'], 'BNS': params['BNS']})
+        # TODO: logic to catch "test" role for advanced warning
+        # TODO: do we need to select on whether target is up?
+        # TODO: save bayestar region
+        ligoc.set(root.attrib['role'], args={'FAR': params['FAR'], 'BNS': params['BNS'],
+                                             'HasNS': params['HasNS'], 'Terrestrial': params['Terrestrial']})
 gcn.listen(handler=process_gcn)
 
 
