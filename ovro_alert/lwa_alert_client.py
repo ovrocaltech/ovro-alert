@@ -5,6 +5,8 @@ from mnc import control
 import threading
 
 
+delay = lambda dm, f1, f2: 4.149 * 1e3 * dm * (f2 ** (-2) - f1 ** (-2))
+
 class LWAAlertClient(AlertClient):
     def __init__(self, con):
         super().__init__('lwa')
@@ -41,10 +43,10 @@ class LWAAlertClient(AlertClient):
                 if ddl["command"] == "observation":   # chime/ligo have command="observation" or "test"
                     print("Received LIGO event")
                     # TODO: check for sources we want to observe (e.g., by name or properties)
-                    self.trigger(ddl)
+                    self.trigger(ddl["args"])
                 elif ddl["command"] == "test":
                     print("Received LIGO test")
-
+                    self.trigger('test')
             else:
                 sleep(loop)
                 continue
@@ -54,10 +56,17 @@ class LWAAlertClient(AlertClient):
         This method assumes it should trigger and figures out parameters from input.
         """
 
-        path_map = {2: '/data0/', 3: '/data1/'}
+        # TODO: select on -- is up? HasNS? Terrestrial?
 
+        path_map = {2: '/data0/', 3: '/data1/'}
+        if dd == 'test':
+            dt = 1/1000
+        else:
+            dt = delay(1000, 1e9, 50)
+
+        # TODO: check disk space: 2.7 TB per DM=1000 event (at 50 MHz)
         # TODO: calculate length from input dict
-        ntime_per_file = 24000
+        ntime_per_file = int(dt*24000)   # 1/24000=41.666 microsec per sample
         nfile = 1
 
         for pipeline in self.pipelines:
