@@ -16,16 +16,15 @@ else:
 app = FastAPI()
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*.caltech.edu"])
 
-dd = {"dsa": {"command": None, "command_mjd": None, "test_mjd": None},
-      "lwa": {"command": None, "command_mjd": None, "test_mjd": None},
-      "ligo": {"command": None, "command_mjd": None, "test_mjd": None},
-      "chime": {"command": None, "command_mjd": None, "test_mjd": None}}
+dd = {"dsa": {"command": None, "command_mjd": None},#, "test_mjd": None},
+      "lwa": {"command": None, "command_mjd": None},#, "test_mjd": None},
+      "ligo": {"command": None, "command_mjd": None},#, "test_mjd": None},
+      "chime": {"command": None, "command_mjd": None}}#, "test_mjd": None}}
 
 
 class Command(BaseModel):
-    command: str
+    command: str   # type?
     command_mjd: float
-#    test_mjd: float  # is this required?
     args: dict
 
 @app.get("/")
@@ -86,13 +85,13 @@ def get_ligo(key):
 @app.put("/ligo")
 def set_ligo(command: Command, key: str):
     if key == RELAY_KEY:
-        if command.command == 'test':
-            dd["ligo"].update({"test_mjd": command.command_mjd})
-            return f"Set LIGO test"
-        else:
-            dd["ligo"] = {"command": command.command, "command_mjd": command.command_mjd,
-                           "args": command.args}
-            return f"Set LIGO event: {command.command} with {command.args}"
+#        if command.command == 'test':
+#            dd["ligo"].update({"test_mjd": command.command_mjd})
+#            return f"Set LIGO test"
+#        else:
+        dd["ligo"] = {"command": command.command, "command_mjd": command.command_mjd,
+                      "args": command.args}
+        return f"Set LIGO event: {command.command} with {command.args}"
     else:
         return "Bad key"
 
@@ -110,12 +109,12 @@ def get_chime(key):
 @app.put("/chime")
 def set_chime(command: Command, key: str):
     if key == RELAY_KEY:
-        if command.command == 'test':
-            dd["chime"].update({"test_mjd": command.command_mjd})
-            return f"Set CHIME test"
-        else:
-            dd['chime'] = {"command": command.command, "command_mjd": command.command_mjd,
-                           "args": command.args}
-            return f"Set CHIME event: {command.command} with {command.args}"
+#        if command.command == 'test':
+#            dd["chime"].update({"test_mjd": command.command_mjd})
+#            return f"Set CHIME test"
+#        else:
+        dd['chime'] = {"command": command.command, "command_mjd": command.command_mjd,
+                       "args": command.args}
+        return f"Set CHIME event: {command.command} with {command.args}"
     else:
         return "Bad key"
