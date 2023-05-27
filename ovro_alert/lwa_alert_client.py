@@ -97,9 +97,9 @@ class LWAAlertClient(AlertClient):
         self.con.start_dr(recorders=['dr3'], duration=(d0+10)*1e3, time_avg=128)
         con.configure_xengine('dr3', calibratebeams=False, full=False)  # get beam control handlers
 #        self.con.control_bf(num=3, targetname=(RA, Dec), track=True)
-        thread = threading.Thread(target=self.con.control_bf, kwargs={'num': 1, 'targetname': (RA, Dec), 'track': True})
+        thread = threading.Thread(target=self.con.control_bf, kwargs={'num': 3, 'targetname': (RA, Dec), 'track': True})
         thread.start()
-        
+        thread.join()
 
 if __name__ == '__main__':
     con = control.Controller()
