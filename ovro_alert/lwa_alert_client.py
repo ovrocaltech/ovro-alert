@@ -31,7 +31,7 @@ class LWAAlertClient(AlertClient):
                 if ddc["command"] == "observation":   # chime/ligo have command="observation" or "test"
                     print("Received CHIME event")
                     assert all(key in ddc["args"] for key in ["dm", "toa", "position"])
-                    if "known" in ddc["args"]:
+                    if ddc["args"]["known"]:
                         # TODO: check for sources we want to observe (e.g., by name or properties)
                         self.powerbeam(ddc["args"])
                 elif ddc["command"] == "test":
