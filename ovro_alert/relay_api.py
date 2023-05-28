@@ -6,7 +6,14 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from pydantic import BaseModel
 
 from astropy import time
+from slack_sdk import WebClient
 
+
+if "SLACK_TOKEN_CR" in environ:
+    cl = WebClient(token=environ["SLACK_TOKEN_CR"])
+else:
+    print("No slack token found. Will not push to slack.")
+    cl = None
 
 if "RELAY_KEY" in environ:
     RELAY_KEY = environ["RELAY_KEY"]
@@ -91,6 +98,10 @@ def set_ligo(command: Command, key: str):
 #        else:
         dd["ligo"] = {"command": command.command, "command_mjd": command.command_mjd,
                       "args": command.args}
+
+        if command.command == 'observation' and cl is not None:
+            res = cl.chat_postMessage(channel='#alert-driven-astro', text=f'LIGO event with args: {command.args}')
+
         return f"Set LIGO event: {command.command} with {command.args}"
     else:
         return "Bad key"
@@ -115,6 +126,10 @@ def set_chime(command: Command, key: str):
 #        else:
         dd['chime'] = {"command": command.command, "command_mjd": command.command_mjd,
                        "args": command.args}
+
+        if command.command == 'observation' and cl is not None:
+            res = cl.chat_postMessage(channel='#alert-driven-astro', text=f'CHIME/FRB event with args: {command.args}')
+
         return f"Set CHIME event: {command.command} with {command.args}"
     else:
         return "Bad key"
