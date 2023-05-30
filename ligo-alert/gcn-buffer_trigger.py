@@ -33,7 +33,7 @@ def process_gcn(payload, root, write=False):
     
     # Respond to both 'test' in case of EarlyWarning alert or 'observation' 
     condition1 = root.attrib['role'] == 'test' and params['AlertType'] == 'EarlyWarning'
-    condition2 = root.attrib['role'] == 'test' # IMPORTANT! for real observations set to 'observation' 
+    condition2 = root.attrib['role'] == 'observation' # IMPORTANT! for real observations set to 'observation' 
     if not (condition1 or condition2):
         return
 
@@ -60,7 +60,7 @@ def process_gcn(payload, root, write=False):
         now = datetime.datetime.utcnow()
 
         # Open a new file in write mode
-        if write:
+        if write and root.attrib['role'] != 'test':
             file_name = params['GraceID']+'_ligo.txt'
             with open(file_name, "w") as f:
                 # Write the text "Trigger the buffer,"
@@ -76,11 +76,7 @@ def process_gcn(payload, root, write=False):
         # TODO: save bayestar region
         ligoc.set(root.attrib['role'], args={'FAR': params['FAR'], 'BNS': params['BNS'],
                                              'HasNS': params['HasNS'], 'Terrestrial': params['Terrestrial']})
-gcn.listen(handler=process_gcn)
-
-
-
-
-
-
-
+    else:
+        print(f'Event did not pass selection: FAR {params["FAR"]}, BNS {params["BNS"]}, Terrestrial {params["Terrestrial"]}.')
+            
+gcn.listen(handler=process_gcn, write=True)
