@@ -26,6 +26,8 @@ class LWAAlertClient(AlertClient):
             ddl = self.get(route='ligo')
             print(".", end="")
 
+            # TODO: validate ddc and ddl have correct fields (and maybe reject malicious content?)
+
             if ddc["command_mjd"] != ddc0["command_mjd"]:
                 ddc0 = ddc.copy()
 
@@ -85,22 +87,19 @@ class LWAAlertClient(AlertClient):
 
         RA = float(position[0])
         Dec = float(position[1])
-        dm = dd["dm"]
         toa = dd["toa"]
-        d0 = delay(dm, 1e9, 50)
+        if 'duration' in dd:
+            d0 = dd['duration']
+        else:
+            dm = dd["dm"]
+            d0 = delay(dm, 1e9, 50) + 10  # Observe for the delay plus a bit more
 
-# slow way
-#        con.configure_xengine('dr3', calibratebeams=True, full=True)  # get beam control handlers
-#        thread = threading.Thread(target=self.con.control_bf, kwargs={'num': 1, 'targetname': (RA, Dec), 'track': True})
-#        thread.start()
-
-	#Observe for the delay plus a bit more (duration is in ms)
-        self.con.start_dr(recorders=['dr3'], duration=(d0+10)*1e3, time_avg=128)
+        self.con.start_dr(recorders=['dr3'], duration=d0*1e3, time_avg=128) # (duration is in ms)
         con.configure_xengine('dr3', calibratebeams=False, full=False)  # get beam control handlers
-#        self.con.control_bf(num=3, targetname=(RA, Dec), track=True)
-        thread = threading.Thread(target=self.con.control_bf, kwargs={'num': 3, 'targetname': (RA, Dec), 'track': True})
-        thread.start()
-        thread.join()
+#        thread = threading.Thread(target=self.con.control_bf, kwargs={'num': 3, 'coord': (RA, Dec), 'track': True, 'duration': d0})
+#        thread.start()
+#        thread.join()
+        self.con.control_bf(num=3, coord=(RA, Dec), track=True, duration=d0)
 
 if __name__ == '__main__':
     con = control.Controller()
