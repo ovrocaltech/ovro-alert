@@ -23,7 +23,7 @@ BNS_NSBH_THRESH = 0 # Either BNS or NSBH probability
     gcn.notice_types.LVC_UPDATE,
     gcn.notice_types.LVC_RETRACTION)
 
-def process_gcn(payload, root, write=False):
+def process_gcn(payload, root, write=True):
     
     # Read all of the VOEvent parameters from the "What" section.
     params = {elem.attrib['name']:
@@ -79,4 +79,4 @@ def process_gcn(payload, root, write=False):
     else:
         print(f'Event did not pass selection: FAR {params["FAR"]}, BNS {params["BNS"]}, Terrestrial {params["Terrestrial"]}.')
             
-gcn.listen(handler=process_gcn, write=True)
+gcn.listen(handler=process_gcn)
