@@ -1,7 +1,7 @@
 import gcn
 import datetime
 from ovro_alert import alert_client
-
+import ligo.skymap.io
 
 ligoc = alert_client.AlertClient('ligo')
 
