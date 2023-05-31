@@ -12,6 +12,7 @@ class LWAAlertClient(AlertClient):
         super().__init__('lwa')
         self.con = con
         self.pipelines = [p for p in con.pipelines if p.pipeline_id in [2, 3]]
+        self.con.configure_xengine(recorders=['dr3'], full=False, calibratebeams=True)
 
     def poll(self, loop=5):
         """ Poll the relay API for commands.
@@ -25,13 +26,15 @@ class LWAAlertClient(AlertClient):
             ddl = self.get(route='ligo')
             print(".", end="")
 
+            # TODO: validate ddc and ddl have correct fields (and maybe reject malicious content?)
+
             if ddc["command_mjd"] != ddc0["command_mjd"]:
                 ddc0 = ddc.copy()
 
                 if ddc["command"] == "observation":   # chime/ligo have command="observation" or "test"
                     print("Received CHIME event")
                     assert all(key in ddc["args"] for key in ["dm", "toa", "position"])
-                    if "known" in ddc["args"]:
+                    if ddc["args"]["known"]:
                         # TODO: check for sources we want to observe (e.g., by name or properties)
                         self.powerbeam(ddc["args"])
                 elif ddc["command"] == "test":
@@ -84,22 +87,19 @@ class LWAAlertClient(AlertClient):
 
         RA = float(position[0])
         Dec = float(position[1])
-        dm = dd["dm"]
         toa = dd["toa"]
-        d0 = delay(dm, 1e9, 50)
+        if 'duration' in dd:
+            d0 = dd['duration']
+        else:
+            dm = dd["dm"]
+            d0 = delay(dm, 1e9, 50) + 10  # Observe for the delay plus a bit more
 
-# slow way
-#        con.configure_xengine('dr3', calibratebeams=True, full=True)  # get beam control handlers
-#        thread = threading.Thread(target=self.con.control_bf, kwargs={'num': 1, 'targetname': (RA, Dec), 'track': True})
-#        thread.start()
-
-	#Observe for the delay plus a bit more (duration is in ms)
-        self.con.start_dr(recorders=['dr3'], duration=(d0+10)*1e3, time_avg=128)
+        self.con.start_dr(recorders=['dr3'], duration=d0*1e3, time_avg=128) # (duration is in ms)
         con.configure_xengine('dr3', calibratebeams=False, full=False)  # get beam control handlers
-#        self.con.control_bf(num=3, targetname=(RA, Dec), track=True)
-        thread = threading.Thread(target=self.con.control_bf, kwargs={'num': 1, 'targetname': (RA, Dec), 'track': True})
-        thread.start()
-        
+#        thread = threading.Thread(target=self.con.control_bf, kwargs={'num': 3, 'coord': (RA, Dec), 'track': True, 'duration': d0})
+#        thread.start()
+#        thread.join()
+        self.con.control_bf(num=3, coord=(RA, Dec), track=True, duration=d0)
 
 if __name__ == '__main__':
     con = control.Controller()
