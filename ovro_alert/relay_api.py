@@ -75,6 +75,10 @@ def set_dsa(command: Command, key: str):
     if key == RELAY_KEY:
         dd['dsa'] = {"command": command.command, "command_mjd": command.command_mjd,
                      "args": command.args}
+
+        if command.command == 'observation' and cl is not None:
+            res = cl.chat_postMessage(channel='#alert-driven-astro', text=f'DSA-110 event with args: {command.args}')
+
         return f"Set dsa command: {command.command} with {command.args}"
     else:
         return "Bad key"
