@@ -14,8 +14,8 @@ ASTRO_PROB_THRESH = 0.9 # not Terrestrial
 HAS_NS_THRESH = 0.9 # HasNS probability
 BNS_NSBH_THRESH = 0 # Either BNS or NSBH probability
 
-slack_token = "your-slack-token"  # use your actual Slack token
-slack_channel = "#your-channel"  # use your actual Slack channel
+slack_token = "your-slack-token"  # use your actual Slack token (TBD)
+slack_channel = "#your-channel"  # use your actual Slack channel (TBD)
 client = WebClient(token=slack_token)
 send_to_slack = False  # global variable to control whether to send to Slack
 
@@ -48,8 +48,7 @@ def process_gcn(payload, root, write=True):
     # Respond to both 'test' in case of EarlyWarning alert or 'observation' 
     condition1 = root.attrib['role'] == 'test' and params['AlertType'] == 'EarlyWarning'
     condition2 = root.attrib['role'] == 'observation' # IMPORTANT! for real observations set to 'observation'
-    condition3 = root.attrib['role'] == 'test' # For testing purposes
-    if not (condition1 or condition2 or condition3):
+    if not (condition1 or condition2):
         return
 
     # If event is retracted, print it.
@@ -104,16 +103,6 @@ def process_gcn(payload, root, write=True):
                                 f", Parameters: FAR {params['FAR']}, BNS {params['BNS']}, HasNS {params['HasNS']}" \
                                 f", Terrestrial {params['Terrestrial']}. Message sent at (UTC): {now.strftime('%Y-%m-%d %H:%M:%S')}."
                 post_to_slack(slack_channel, slack_message)
-
-
-        # for testing, send with nsamp parameter
-        elif condition3:
-
-            print(f'sending to ligo relay server with role {root.attrib["role"]}')
-
-            ligoc.set(root.attrib['role'], args={'FAR': params['FAR'], 'BNS': params['BNS'],
-                                                 'HasNS': params['HasNS'], 'Terrestrial': params['Terrestrial'],
-                                                 'nsamp': 24000})
 
 
         # Save bayestar map
