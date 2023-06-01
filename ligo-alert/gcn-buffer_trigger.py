@@ -75,34 +75,18 @@ def process_gcn(payload, root, write=True):
 
         # Send to relay
         # for EarlyWarning type of Alerts
-        if condition1:
-            print(f'sending EarlyWarning type of alert to ligo relay server with role observation')
+        role = "observation" if condition1 else root.attrib["role"]
+        msg_start = "sending EarlyWarning type of alert" if condition1 else "sending alert"
 
-            ligoc.set("observation", args={'FAR': params['FAR'], 'BNS': params['BNS'],
-                                                 'HasNS': params['HasNS'], 'Terrestrial': params['Terrestrial']})
-            # Send to slack if necessary
-            if send_to_slack:
-                # Prepare the message to be sent to Slack
-                slack_message = f"GraceID: {params['GraceID']}, AlertType: {params['AlertType']}" \
-                                f", Parameters: FAR {params['FAR']}, BNS {params['BNS']}, HasNS {params['HasNS']}" \
-                                f", Terrestrial {params['Terrestrial']}. Message sent at (UTC): {now.strftime('%Y-%m-%d %H:%M:%S')}."
-                post_to_slack(slack_channel, slack_message)
+        print(f'{msg_start} to ligo relay server with role {role}')
+        ligoc.set(role, args={'FAR': params['FAR'], 'BNS': params['BNS'],
+                              'HasNS': params['HasNS'], 'Terrestrial': params['Terrestrial']})
 
-
-        # in case of real observation
-        elif condition2:
-
-            print(f'sending to ligo relay server with role {root.attrib["role"]}')
-
-            ligoc.set(root.attrib['role'], args={'FAR': params['FAR'], 'BNS': params['BNS'],
-                                                     'HasNS': params['HasNS'], 'Terrestrial': params['Terrestrial']})
-            # Send to slack if necessary
-            if send_to_slack:
-                # Prepare the message to be sent to Slack
-                slack_message = f"GraceID: {params['GraceID']}, AlertType: {params['AlertType']}" \
-                                f", Parameters: FAR {params['FAR']}, BNS {params['BNS']}, HasNS {params['HasNS']}" \
-                                f", Terrestrial {params['Terrestrial']}. Message sent at (UTC): {now.strftime('%Y-%m-%d %H:%M:%S')}."
-                post_to_slack(slack_channel, slack_message)
+        if send_to_slack:
+            slack_message = f"GraceID: {params['GraceID']}, AlertType: {params['AlertType']}" \
+                            f", Parameters: FAR {params['FAR']}, BNS {params['BNS']}, HasNS {params['HasNS']}" \
+                            f", Terrestrial {params['Terrestrial']}. Message sent at (UTC): {now.strftime('%Y-%m-%d %H:%M:%S')}."
+            post_to_slack(slack_channel, slack_message)
 
 
         # Save bayestar map
