@@ -77,6 +77,6 @@ def process_gcn(payload, root, write=True):
         ligoc.set(root.attrib['role'], args={'FAR': params['FAR'], 'BNS': params['BNS'],
                                              'HasNS': params['HasNS'], 'Terrestrial': params['Terrestrial']})
     else:
-        print(f'Event did not pass selection: FAR {params["FAR"]}, BNS {params["BNS"]}, Terrestrial {params["Terrestrial"]}.')
+        print(f'Event {params["GraceID"]} did not pass selection: FAR {params["FAR"]}, BNS {params["BNS"]}, Terrestrial {params["Terrestrial"]}.')
             
 gcn.listen(handler=process_gcn)
