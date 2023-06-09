@@ -4,7 +4,14 @@ from ovro_alert import alert_client
 import ligo.skymap.io
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
+from os import environ
 
+
+if "SLACK_TOKEN_CR" in environ:
+    slack_token = environ["SLACK_TOKEN_CR"]
+    slack_channel = "#alert-driven-astro"  # use your actual Slack channel (TBD)
+    client = WebClient(token=slack_token)
+send_to_slack = False  # global variable to control whether to send to Slack
 
 ligoc = alert_client.AlertClient('ligo')
 
@@ -14,10 +21,7 @@ ASTRO_PROB_THRESH = 0.9 # not Terrestrial
 HAS_NS_THRESH = 0.9 # HasNS probability
 BNS_NSBH_THRESH = 0 # Either BNS or NSBH probability
 
-slack_token = "your-slack-token"  # use your actual Slack token (TBD)
-slack_channel = "#your-channel"  # use your actual Slack channel (TBD)
-client = WebClient(token=slack_token)
-send_to_slack = False  # global variable to control whether to send to Slack
+
 
 def post_to_slack(channel, message):
     """Post a message to a Slack channel."""
