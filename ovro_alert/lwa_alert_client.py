@@ -20,10 +20,12 @@ class LWAAlertClient(AlertClient):
 
         ddc0 = self.get(route='chime')
         ddl0 = self.get(route='ligo')
+        ddg0 = self.get(route='gcn')
         while True:
             mjd = Time.now().mjd
             ddc = self.get(route='chime')
             ddl = self.get(route='ligo')
+            ddg = self.get(route='gcn')
             print(".", end="")
 
             # TODO: validate ddc and ddl have correct fields (and maybe reject malicious content?)
@@ -33,11 +35,20 @@ class LWAAlertClient(AlertClient):
 
                 if ddc["command"] == "observation":   # chime/ligo have command="observation" or "test"
                     print("Received CHIME event")
-                    assert all(key in ddc["args"] for key in ["dm", "toa", "position"])
+                    assert all(key in ddc["args"] for key in ["dm", "position"])
 #                    if ddc["args"]["known"]:   # TODO: check for sources we want to observe (e.g., by name or properties)
                     self.powerbeam(ddc["args"])
                 elif ddc["command"] == "test":
                     print("Received CHIME test")
+            elif ddg["command_mjd"] != ddg0["command_mjd"]:
+                ddg0 = ddg.copy()
+
+                if ddg["command"] == "observation":   # TODO; check on types
+                    print("Received GCN event")
+                    assert all(key in ddg["args"] for key in ["duration", "position"])
+                    self.powerbeam(ddg["args"])
+                elif ddg["command"] == "test":
+                    print("Received GCN test")
 
             elif ddl["command_mjd"] != ddl0["command_mjd"]:
                 ddl0 = ddl.copy()
@@ -80,6 +91,7 @@ class LWAAlertClient(AlertClient):
     def powerbeam(self, dd):
         """ Observe with power beam
         This method assumes it should run beamformer observation and figures out parameters from input.
+        keys in dd: 'dm' or 'duration' and 'position'.
         """
 
         position = dd["position"].split(",")  # Parse the position to get ra and dec
@@ -87,7 +99,7 @@ class LWAAlertClient(AlertClient):
         RAd = float(position[0])
         RAh = RAd/15
         Dec = float(position[1])
-        toa = dd["toa"]
+        toa = dd["toa"]  # maybe useful for logging?
         if 'duration' in dd:
             d0 = float(dd['duration'])
         else:

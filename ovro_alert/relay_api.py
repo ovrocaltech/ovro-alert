@@ -26,7 +26,8 @@ app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*.caltech.edu"])
 dd = {"dsa": {"command": None, "command_mjd": None},#, "test_mjd": None},
       "lwa": {"command": None, "command_mjd": None},#, "test_mjd": None},
       "ligo": {"command": None, "command_mjd": None},#, "test_mjd": None},
-      "chime": {"command": None, "command_mjd": None}}#, "test_mjd": None}}
+      "chime": {"command": None, "command_mjd": None},#, "test_mjd": None}}
+      "gcn": {"command": None, "command_mjd": None}}#, "test_mjd": None}}
 
 
 class Command(BaseModel):
@@ -135,5 +136,33 @@ def set_chime(command: Command, key: str):
             res = cl.chat_postMessage(channel='#alert-driven-astro', text=f'CHIME/FRB event with args: {command.args}')
 
         return f"Set CHIME event: {command.command} with {command.args}"
+    else:
+        return "Bad key"
+
+
+@app.get("/gcn")
+def get_gcn(key):
+    if key == RELAY_KEY:
+        dd2 = {"read_mjd": time.Time.now().mjd}
+        dd2.update(dd["gcn"])
+        return dd2
+    else:
+        return "Bad key"
+
+
+@app.put("/gcn")
+def set_gcn(command: Command, key: str):
+    if key == RELAY_KEY:
+#        if command.command == 'test':
+#            dd["chime"].update({"test_mjd": command.command_mjd})
+#            return f"Set CHIME test"
+#        else:
+        dd['gcn'] = {"command": command.command, "command_mjd": command.command_mjd,
+                       "args": command.args}
+
+        if command.command == 'observation' and cl is not None:
+            res = cl.chat_postMessage(channel='#alert-driven-astro', text=f'GCN event with args: {command.args}')
+
+        return f"Set GCN event: {command.command} with {command.args}"
     else:
         return "Bad key"
