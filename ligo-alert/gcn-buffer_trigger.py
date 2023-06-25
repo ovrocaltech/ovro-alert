@@ -1,7 +1,7 @@
 import gcn
 import datetime
 from ovro_alert import alert_client
-import ligo.skymap.io
+#import ligo.skymap.io
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from os import environ
@@ -11,7 +11,7 @@ if "SLACK_TOKEN_CR" in environ:
     slack_token = environ["SLACK_TOKEN_CR"]
     slack_channel = "#alert-driven-astro"  # use your actual Slack channel (TBD)
     client = WebClient(token=slack_token)
-send_to_slack = False  # global variable to control whether to send to Slack
+send_to_slack = True  # global variable to control whether to send to Slack
 
 ligoc = alert_client.AlertClient('ligo')
 
@@ -94,7 +94,7 @@ def process_gcn(payload, root, write=True):
 
 
         # Save bayestar map
-        if 'skymap_fits' in params:
+        if ('skymap_fits' in params) and False:  # turn this off for now
             # Read the HEALPix sky map and the FITS header.
             skymap, _ = ligo.skymap.io.read_sky_map(params['skymap_fits'])
 
