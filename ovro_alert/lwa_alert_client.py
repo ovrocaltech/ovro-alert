@@ -34,9 +34,8 @@ class LWAAlertClient(AlertClient):
                 if ddc["command"] == "observation":   # chime/ligo have command="observation" or "test"
                     print("Received CHIME event")
                     assert all(key in ddc["args"] for key in ["dm", "toa", "position"])
-                    if ddc["args"]["known"]:
-                        # TODO: check for sources we want to observe (e.g., by name or properties)
-                        self.powerbeam(ddc["args"])
+#                    if ddc["args"]["known"]:   # TODO: check for sources we want to observe (e.g., by name or properties)
+                    self.powerbeam(ddc["args"])
                 elif ddc["command"] == "test":
                     print("Received CHIME test")
 
@@ -85,13 +84,15 @@ class LWAAlertClient(AlertClient):
 
         position = dd["position"].split(",")  # Parse the position to get ra and dec
 
-        RA = float(position[0])
+        RAd = float(position[0])
+        RAh = RAd/15
         Dec = float(position[1])
         toa = dd["toa"]
         if 'duration' in dd:
-            d0 = dd['duration']
+            d0 = float(dd['duration'])
         else:
-            dm = dd["dm"]
+            assert 'dm' in dd
+            dm = float(dd["dm"])
             d0 = delay(dm, 1e9, 50) + 10  # Observe for the delay plus a bit more
 
         self.con.start_dr(recorders=['dr3'], duration=d0*1e3, time_avg=128) # (duration is in ms)
@@ -99,10 +100,11 @@ class LWAAlertClient(AlertClient):
 #        thread = threading.Thread(target=self.con.control_bf, kwargs={'num': 3, 'coord': (RA, Dec), 'track': True, 'duration': d0})
 #        thread.start()
 #        thread.join()
-        self.con.control_bf(num=3, coord=(RA, Dec), track=True, duration=d0)
+        self.con.control_bf(num=3, coord=(RAh, Dec), track=True, duration=d0)  # RA must be in decimal hours
 
 if __name__ == '__main__':
-    con = control.Controller()
+#    xhosts = [f'lxdlwagpu0{i}' for i in [3,4,5,6,7,8]]  # remove bad gpus
+    con = control.Controller()  # xhosts=xhosts)
     client = LWAAlertClient(con)
     client.poll(loop=5)
 
