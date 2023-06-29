@@ -1,9 +1,19 @@
-
 import gcn
-import healpy as hp
-import ligo.skymap
-import ligo.skymap.io
 import datetime
+from ovro_alert import alert_client
+import ligo.skymap.io
+from slack_sdk import WebClient
+from slack_sdk.errors import SlackApiError
+from os import environ
+
+
+if "SLACK_TOKEN_CR" in environ:
+    slack_token = environ["SLACK_TOKEN_CR"]
+    slack_channel = "#alert-driven-astro"  # use your actual Slack channel (TBD)
+    client = WebClient(token=slack_token)
+send_to_slack = False  # global variable to control whether to send to Slack
+
+ligoc = alert_client.AlertClient('ligo')
 
 # Define thresholds
 FAR_THRESH = 3.17e-9 # 1 event per decade
@@ -11,6 +21,14 @@ ASTRO_PROB_THRESH = 0.9 # not Terrestrial
 HAS_NS_THRESH = 0.9 # HasNS probability
 BNS_NSBH_THRESH = 0 # Either BNS or NSBH probability
 
+
+
+def post_to_slack(channel, message):
+    """Post a message to a Slack channel."""
+    try:
+        response = client.chat_postMessage(channel=channel, text=message)
+    except SlackApiError as e:
+        print(f"Error sending to Slack: {e.response['error']}")
 
 # Function to call every time a GCN is received.
 # Run only for notices of type
@@ -23,7 +41,7 @@ BNS_NSBH_THRESH = 0 # Either BNS or NSBH probability
     gcn.notice_types.LVC_UPDATE,
     gcn.notice_types.LVC_RETRACTION)
 
-def process_gcn(payload, root):
+def process_gcn(payload, root, write=True):
     
     # Read all of the VOEvent parameters from the "What" section.
     params = {elem.attrib['name']:
@@ -33,9 +51,9 @@ def process_gcn(payload, root):
     
     # Respond to both 'test' in case of EarlyWarning alert or 'observation' 
     condition1 = root.attrib['role'] == 'test' and params['AlertType'] == 'EarlyWarning'
-    condition2 = root.attrib['role'] == 'test' # IMPORTANT! for real observations set to 'observation' 
+    condition2 = root.attrib['role'] == 'observation' # IMPORTANT! for real observations set to 'observation'
     if not (condition1 or condition2):
-        returnii
+        return
 
     # If event is retracted, print it.
     if params['AlertType'] == 'Retraction':
@@ -59,20 +77,34 @@ def process_gcn(payload, root):
         # Create a datetime object with the current time in UTC
         now = datetime.datetime.utcnow()
 
-        # Open a new file in write mode
-        file_name = params['GraceID']+'_ligo.txt'
-        with open(file_name, "w") as f:
-            # Write the text "Trigger the buffer,"
-            f.write("Trigger the buffer,\n")
+        # Send to relay
+        # for EarlyWarning type of Alerts
+        role = "observation" if condition1 else root.attrib["role"]
+        msg_start = "sending EarlyWarning type of alert" if condition1 else "sending alert"
 
-            # Write the current time in UTC in a human-readable format
-            f.write("Created at (UTC): " + now.strftime("%Y-%m-%d %H:%M:%S"))
+        print(f'{msg_start} to ligo relay server with role {role}')
+        ligoc.set(role, args={'FAR': params['FAR'], 'BNS': params['BNS'],
+                              'HasNS': params['HasNS'], 'Terrestrial': params['Terrestrial']})
 
+        if send_to_slack:
+            slack_message = f"GraceID: {params['GraceID']}, AlertType: {params['AlertType']}" \
+                            f", Parameters: FAR {params['FAR']}, BNS {params['BNS']}, HasNS {params['HasNS']}" \
+                            f", Terrestrial {params['Terrestrial']}. Message sent at (UTC): {now.strftime('%Y-%m-%d %H:%M:%S')}."
+            post_to_slack(slack_channel, slack_message)
+
+
+        # Save bayestar map
+        if 'skymap_fits' in params:
+            # Read the HEALPix sky map and the FITS header.
+            skymap, _ = ligo.skymap.io.read_sky_map(params['skymap_fits'])
+
+            # Write the skymap to a file
+            skymap_file_name = params['GraceID'] + '_skymap.fits'
+            ligo.skymap.io.write_sky_map(skymap_file_name, skymap, overwrite=True)
+
+            # TODO: do we need to select on whether target is up?
+
+    else:
+        print(f'Event did not pass selection: FAR {params["FAR"]}, BNS {params["BNS"]}, Terrestrial {params["Terrestrial"]}.')
+            
 gcn.listen(handler=process_gcn)
-
-
-
-
-
-
-
