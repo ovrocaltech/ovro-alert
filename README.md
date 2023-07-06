@@ -6,7 +6,7 @@ Alert scenarios:
 - CHIME/FRB to OVRO-LWA -- Search for ultra-wide band emission from repeating FRBs from CHIME
 - LIGO to OVRO-LWA -- Search for prompt radio counterparts to neutron star mergers
 - Fermi and Swift to OVRO-LWA -- Search for prompt radio counterparts to short GRBs
-- DSA-110 to Swift/GUANO -- Search for prompt high-energy counterparts or afterglows from FRBs
+- DSA-110 to Swift/GUANO -- Search for prompt high-energy counterparts or afterglows from FRBs (managed by dsa110-event)
 - DSA-110 to OVRO-LWA -- Search for ultra-wide band emission from non-repeating FRBs
 - Flarescope and OVRO-LWA co-observing -- Automatic OVRO-LWA observing to search for stellar flares
 - Optical transients to SPRITE?
