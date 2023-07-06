@@ -23,15 +23,15 @@ else:
 app = FastAPI()
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*.caltech.edu"])
 
-dd = {"dsa": {"command": None, "command_mjd": None},#, "test_mjd": None},
-      "lwa": {"command": None, "command_mjd": None},#, "test_mjd": None},
-      "ligo": {"command": None, "command_mjd": None},#, "test_mjd": None},
-      "chime": {"command": None, "command_mjd": None},#, "test_mjd": None}}
-      "gcn": {"command": None, "command_mjd": None}}#, "test_mjd": None}}
+dd = {"dsa": {"command": None, "command_mjd": None},
+      "lwa": {"command": None, "command_mjd": None},
+      "ligo": {"command": None, "command_mjd": None},
+      "chime": {"command": None, "command_mjd": None},
+      "gcn": {"command": None, "command_mjd": None}}
 
 
 class Command(BaseModel):
-    command: str   # type?
+    command: str
     command_mjd: float
     args: dict
 
@@ -78,7 +78,8 @@ def set_dsa(command: Command, key: str):
                      "args": command.args}
 
         if command.command == 'observation' and cl is not None:
-            res = cl.chat_postMessage(channel='#alert-driven-astro', text=f'DSA-110 event with args: {command.args}')
+            message = f'DSA-110 event with args: {command.args}'  # TODO: elaborate on nature, value, etc
+            res = cl.chat_postMessage(channel='#alert-driven-astro', text=message)
 
         return f"Set dsa command: {command.command} with {command.args}"
     else:
@@ -94,18 +95,16 @@ def get_ligo(key):
     else:
         return "Bad key"
 
+
 @app.put("/ligo")
 def set_ligo(command: Command, key: str):
     if key == RELAY_KEY:
-#        if command.command == 'test':
-#            dd["ligo"].update({"test_mjd": command.command_mjd})
-#            return f"Set LIGO test"
-#        else:
         dd["ligo"] = {"command": command.command, "command_mjd": command.command_mjd,
                       "args": command.args}
 
         if command.command == 'observation' and cl is not None:
-            res = cl.chat_postMessage(channel='#alert-driven-astro', text=f'LIGO event with args: {command.args}')
+            message = f'LIGO event {command.args["GraceID"]} received}'  # more verbose logging by receiver script
+            res = cl.chat_postMessage(channel='#alert-driven-astro', text=message)
 
         return f"Set LIGO event: {command.command} with {command.args}"
     else:
@@ -125,15 +124,12 @@ def get_chime(key):
 @app.put("/chime")
 def set_chime(command: Command, key: str):
     if key == RELAY_KEY:
-#        if command.command == 'test':
-#            dd["chime"].update({"test_mjd": command.command_mjd})
-#            return f"Set CHIME test"
-#        else:
         dd['chime'] = {"command": command.command, "command_mjd": command.command_mjd,
                        "args": command.args}
 
         if command.command == 'observation' and cl is not None:
-            res = cl.chat_postMessage(channel='#alert-driven-astro', text=f'CHIME/FRB event with args: {command.args}')
+            message = f'CHIME/FRB event {command.args["event_no"]} received'  # more detail may be posted by reader client
+            res = cl.chat_postMessage(channel='#alert-driven-astro', text=message)
 
         return f"Set CHIME event: {command.command} with {command.args}"
     else:
@@ -153,15 +149,12 @@ def get_gcn(key):
 @app.put("/gcn")
 def set_gcn(command: Command, key: str):
     if key == RELAY_KEY:
-#        if command.command == 'test':
-#            dd["chime"].update({"test_mjd": command.command_mjd})
-#            return f"Set CHIME test"
-#        else:
         dd['gcn'] = {"command": command.command, "command_mjd": command.command_mjd,
                        "args": command.args}
 
         if command.command == 'observation' and cl is not None:
-            res = cl.chat_postMessage(channel='#alert-driven-astro', text=f'GCN event with args: {command.args}')
+            message = f'GCN event with args: {command.args}'  # TODO: parse this for clarity
+            res = cl.chat_postMessage(channel='#alert-driven-astro', text=message)
 
         return f"Set GCN event: {command.command} with {command.args}"
     else:

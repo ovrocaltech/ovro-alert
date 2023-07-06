@@ -84,7 +84,8 @@ def process_gcn(payload, root, write=True):
 
         print(f'{msg_start} to ligo relay server with role {role}')
         ligoc.set(role, args={'FAR': params['FAR'], 'BNS': params['BNS'],
-                              'HasNS': params['HasNS'], 'Terrestrial': params['Terrestrial']})
+                              'HasNS': params['HasNS'], 'Terrestrial': params['Terrestrial'],
+                              'GraceID': params['GraceID']})
 
         if send_to_slack:
             slack_message = f"GraceID: {params['GraceID']}, AlertType: {params['AlertType']}" \
