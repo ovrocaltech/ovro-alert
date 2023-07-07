@@ -44,9 +44,9 @@ class LWAAlertClient(AlertClient):
                 ddg0 = ddg.copy()
 
                 if ddg["command"] == "observation":   # TODO; check on types
-                    print("Received GCN event")
+                    print("Received GCN event. Not observing yet")  # TODO: test
                     assert all(key in ddg["args"] for key in ["duration", "position"])
-                    self.powerbeam(ddg["args"])
+#                    self.powerbeam(ddg["args"])
                 elif ddg["command"] == "test":
                     print("Received GCN test")
 
