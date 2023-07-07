@@ -85,10 +85,10 @@ def process_gcn(payload, root, write=True):
         print(f'{msg_start} to ligo relay server with role {role}')
         ligoc.set(role, args={'FAR': params['FAR'], 'BNS': params['BNS'],
                               'HasNS': params['HasNS'], 'Terrestrial': params['Terrestrial'],
-                              'GraceID': params['GraceID']})
+                              'GraceID': params['GraceID'], 'AlertType': params['AlertType']})
 
         if send_to_slack:
-            slack_message = f"GraceID: {params['GraceID']}, AlertType: {params['AlertType']}" \
+            slack_message = f"LIGO {params['AlertType']} alert with GraceID: {params['GraceID']}" \
                             f", Parameters: FAR {params['FAR']}, BNS {params['BNS']}, HasNS {params['HasNS']}" \
                             f", Terrestrial {params['Terrestrial']}. Message sent at (UTC): {now.strftime('%Y-%m-%d %H:%M:%S')}."
             post_to_slack(slack_channel, slack_message)
