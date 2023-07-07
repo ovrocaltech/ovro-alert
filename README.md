@@ -4,9 +4,10 @@ Code and services for sending, receiving, and using astronomical alerts at OVRO.
 Alert scenarios:
 - CHIME/FRB to DSA-110 -- Identify co-detections of non-repeating FRBs and alert to new repeating FRBs from CHIME
 - CHIME/FRB to OVRO-LWA -- Search for ultra-wide band emission from repeating FRBs from CHIME
-- DSA-110 to Swift/GUANO -- Search for prompt high-energy counterparts or afterglows from FRBs
-- DSA-110 to OVRO-LWA -- Search for ultra-wide band emission from non-repeating FRBs
 - LIGO to OVRO-LWA -- Search for prompt radio counterparts to neutron star mergers
+- Fermi and Swift to OVRO-LWA -- Search for prompt radio counterparts to short GRBs
+- DSA-110 to Swift/GUANO -- Search for prompt high-energy counterparts or afterglows from FRBs (managed by dsa110-event)
+- DSA-110 to OVRO-LWA -- Search for ultra-wide band emission from non-repeating FRBs
 - Flarescope and OVRO-LWA co-observing -- Automatic OVRO-LWA observing to search for stellar flares
 - Optical transients to SPRITE?
 - GREX to OVRO-LWA?
@@ -22,6 +23,7 @@ Alert scenarios:
 - voevent-parse
 - slack_sdk
 - astropy
+- pygcn
 
 ## Assumptions and Rules
 
@@ -44,9 +46,10 @@ An alternative would be to structure as events from a sender:
 
 | path | type | args |
 | ---  | ------- | ---- |
-| /ligo | test/event | TOA, FAR, BNS |
-| /chime | test/event | TOA, DM, RA, Dec |
-| /dsa  | test/event | TOA, DM, RA, Dec |
+| /ligo | test/observation | TOA, FAR, BNS |
+| /chime | test/observation | TOA, DM, RA, Dec |
+| /dsa  | test/observation | TOA, DM, RA, Dec |
+| /gcn  | test/observation | TOA, RA, Dec |
 | /flarescope | test/observation | start, duration, RA, Dec |
 
 Current implementation is structured as commands to a receiver.

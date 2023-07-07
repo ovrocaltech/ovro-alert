@@ -1,7 +1,7 @@
 import gcn
 import datetime
 from ovro_alert import alert_client
-import ligo.skymap.io
+#import ligo.skymap.io
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from os import environ
@@ -11,7 +11,7 @@ if "SLACK_TOKEN_CR" in environ:
     slack_token = environ["SLACK_TOKEN_CR"]
     slack_channel = "#alert-driven-astro"  # use your actual Slack channel (TBD)
     client = WebClient(token=slack_token)
-send_to_slack = False  # global variable to control whether to send to Slack
+send_to_slack = True  # global variable to control whether to send to Slack
 
 ligoc = alert_client.AlertClient('ligo')
 
@@ -84,17 +84,18 @@ def process_gcn(payload, root, write=True):
 
         print(f'{msg_start} to ligo relay server with role {role}')
         ligoc.set(role, args={'FAR': params['FAR'], 'BNS': params['BNS'],
-                              'HasNS': params['HasNS'], 'Terrestrial': params['Terrestrial']})
+                              'HasNS': params['HasNS'], 'Terrestrial': params['Terrestrial'],
+                              'GraceID': params['GraceID'], 'AlertType': params['AlertType']})
 
         if send_to_slack:
-            slack_message = f"GraceID: {params['GraceID']}, AlertType: {params['AlertType']}" \
+            slack_message = f"LIGO {params['AlertType']} alert with GraceID: {params['GraceID']}" \
                             f", Parameters: FAR {params['FAR']}, BNS {params['BNS']}, HasNS {params['HasNS']}" \
                             f", Terrestrial {params['Terrestrial']}. Message sent at (UTC): {now.strftime('%Y-%m-%d %H:%M:%S')}."
             post_to_slack(slack_channel, slack_message)
 
 
         # Save bayestar map
-        if 'skymap_fits' in params:
+        if ('skymap_fits' in params) and False:  # turn this off for now
             # Read the HEALPix sky map and the FITS header.
             skymap, _ = ligo.skymap.io.read_sky_map(params['skymap_fits'])
 
@@ -105,6 +106,6 @@ def process_gcn(payload, root, write=True):
             # TODO: do we need to select on whether target is up?
 
     else:
-        print(f'Event did not pass selection: FAR {params["FAR"]}, BNS {params["BNS"]}, Terrestrial {params["Terrestrial"]}.')
+        print(f'Event {params["GraceID"]} did not pass selection: FAR {params["FAR"]}, BNS {params["BNS"]}, Terrestrial {params["Terrestrial"]}.')
             
 gcn.listen(handler=process_gcn)
