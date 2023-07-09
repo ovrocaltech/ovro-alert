@@ -128,7 +128,10 @@ def set_chime(command: Command, key: str):
                        "args": command.args}
 
         if command.command == 'observation' and cl is not None:
-            message = f'CHIME/FRB event {command.args["event_no"]} received'  # more detail may be posted by reader client
+            if "event_no" in command.args:
+                message = f'CHIME/FRB event {command.args["event_no"]} received'  # more detail may be posted by reader client
+            else:
+                message = f'CHIME/FRB event received: {command.args}'
             res = cl.chat_postMessage(channel='#alert-driven-astro', text=message)
 
         return f"Set CHIME event: {command.command} with {command.args}"
