@@ -90,8 +90,6 @@ def get_pulsar_info(pulsar_name, observe_time):
     # Transform the SkyCoord to the AltAz frame
     altaz = c.transform_to(altaz_frame)
     
-    
-    
     # Combine data into a single dictionary
     pulsar_info = {
         'name': pulsar_name,
@@ -102,8 +100,6 @@ def get_pulsar_info(pulsar_name, observe_time):
         'P (s)': pulsar_data[pulsar_name]['P'],
         'w50': pulsar_data[pulsar_name]['w50'],
     }
-    
-    
 
     # Add Alt and Az to the output dictionary
     pulsar_info['Alt (deg)'] = altaz.alt.deg
@@ -115,17 +111,16 @@ def process_pulsars(observe_time):
 
     # Sort and print the pulsars with alt>10 by their flux at the observation time
     pulsar_infos = [get_pulsar_info(pulsar_name, observe_time) for pulsar_name in pulsar_data.keys()]
-    pulsar_infos = sorted([info for info in pulsar_infos if info['Alt (deg)'] > 10], key=lambda info: info['flux (mJy) @ 65 MHz'], reverse=True)
+    pulsar_infos = sorted([info for info in pulsar_infos if info['Alt (deg)'] > 10],
+                          key=lambda info: info['Alt (deg)'], reverse=True)
 
     for info in pulsar_infos:
-        print(f"Name: {info['name']}, Altitude: {info['Alt (deg)']:.2f} deg, Flux: {info['flux (mJy) @ 65 MHz']} mJy, DM: {info['DM (pc cm^-3)']:.2f} pc cm^-3, Period: {info['P (s)']:.2f} s, w50: {info['w50']}")
-
+        print(f"{info['name']} at (RA, Dec) = ({info['ra']}, {info['dec']})")
+        print(f"\t Altitude: {info['Alt (deg)']:.2f} deg, Flux: {info['flux (mJy) @ 65 MHz']} mJy, DM: {info['DM (pc cm^-3)']:.2f} pc cm^-3, Period: {info['P (s)']:.2f} s, w50: {info['w50']}")
 
     times = observe_time + np.arange(-12*2, 12*2)*30*u.min
 
-
     alt_data = {}
-
 
     for pulsar_name in pulsar_data.keys():
         altitudes = []
@@ -134,9 +129,8 @@ def process_pulsars(observe_time):
             altitudes.append(info['Alt (deg)'])
         alt_data[pulsar_name] = altitudes
 
-
+    # Create plot
     plt.figure(figsize=(10,6))
-
 
     for pulsar_name, altitudes in alt_data.items():
         altitudes = np.array(altitudes)
@@ -159,20 +153,23 @@ def process_pulsars(observe_time):
     plt.show()
 
 
-
 def main():
     # Create an argument parser
     parser = argparse.ArgumentParser(description='bright pulsars for LWA observation test')
 
     # Add argument for observation time
-    parser.add_argument('-t', '--time', type=str, required=True,
-                        help='observation time in the format YYYY-MM-DDTHH:MM:SS (UTC)')
+    parser.add_argument('-t', '--time', type=str, required=False,
+                        help='Observation time in the format YYYY-MM-DDTHH:MM:SS (UTC). Default is now.')
 
     # Parse the arguments
     args = parser.parse_args()
 
     # Convert the observation time string to an Astropy Time object
-    observe_time = Time(args.time)
+    if args.time is not None:
+        observe_time = Time(args.time)
+    else:
+        print('using current time')
+        observe_time = Time.now()
 
     # Call the function to process the pulsars
     process_pulsars(observe_time)

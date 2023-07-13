@@ -108,7 +108,7 @@ class LWAAlertClient(AlertClient):
             d0 = delay(dm, 1e9, 50) + 10  # Observe for the delay plus a bit more
 
         self.con.start_dr(recorders=['dr3'], duration=d0*1e3, time_avg=128) # (duration is in ms)
-        con.configure_xengine('dr3', calibratebeams=False, full=False)  # get beam control handlers
+        self.con.configure_xengine('dr3', calibratebeams=False, full=False)  # get beam control handlers
 #        thread = threading.Thread(target=self.con.control_bf, kwargs={'num': 3, 'coord': (RA, Dec), 'track': True, 'duration': d0})
 #        thread.start()
 #        thread.join()
