@@ -77,14 +77,16 @@ class LWAAlertClient(AlertClient):
 
         # TODO: check disk space: 2.7 TB per DM=1000 event (at 50 MHz)
         # TODO: calculate length from input dict
-        ntime_per_file = int(dt*24000)   # 1/24000=41.666 microsec per sample
-        nfile = 1
+
+        ntime_per_file = 1000000   # compile time in x-engine?
+        ntime = int(dt*24000)   # 1/24000=41.666 microsec per sample
+        nfile = max(1, ntime//ntime_per_file)  # trigger at least one file
 
         for pipeline in self.pipelines:
             if pipeline.pipeline_id in path_map:
                 path = path_map[pipeline.pipeline_id]
                 pipeline.triggered_dump.trigger(ntime_per_file=ntime_per_file, nfile=nfile, dump_path=path)
-        print(f'Triggered {len(self.pipelines)} pipelines to record {ntime_per_file} samples per gpu server.')
+        print(f'Triggered {len(self.pipelines)} pipelines to record {nfile} files with {ntime_per_file} samples each.')
 
     def powerbeam(self, dd):
         """ Observe with power beam
