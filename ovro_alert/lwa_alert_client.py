@@ -55,8 +55,8 @@ class LWAAlertClient(AlertClient):
 
                 if ddl["command"] == "observation":   # chime/ligo have command="observation" or "test"
                     print("Received LIGO event")
-                    # TODO: check for sources we want to observe (e.g., by name or properties)
-                    self.trigger()
+                    nsamp = ddl["args"]["nsamp"] if "nsamp" in ddl["args"] else None
+                    self.trigger(nsamp=nsamp)
                 elif ddl["command"] == "test":
                     print("Received LIGO test")
                     if 'nsamp' in ddl:
@@ -68,8 +68,6 @@ class LWAAlertClient(AlertClient):
         """ Trigger voltage dump
         This method assumes it should trigger and figures out parameters from input.
         """
-
-        # TODO: select on -- is up? HasNS? Terrestrial?
 
         path_map = {2: '/data0/', 3: '/data1/'}
         if nsamp is not None:
@@ -86,7 +84,7 @@ class LWAAlertClient(AlertClient):
             if pipeline.pipeline_id in path_map:
                 path = path_map[pipeline.pipeline_id]
                 pipeline.triggered_dump.trigger(ntime_per_file=ntime_per_file, nfile=nfile, dump_path=path)
-        print(f'Triggered {len(self.pipelines)} pipelines')
+        print(f'Triggered {len(self.pipelines)} pipelines to record {ntime_per_file} samples per gpu server.')
 
     def powerbeam(self, dd):
         """ Observe with power beam
