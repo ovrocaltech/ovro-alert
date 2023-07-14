@@ -78,7 +78,10 @@ def set_dsa(command: Command, key: str):
                      "args": command.args}
 
         if command.command == 'observation' and cl is not None:
-            message = f'DSA-110 event {command.args["trigname"]} received'
+            if "trigname" in command.args:
+                message = f'DSA-110 event {command.args["trigname"]} received'
+            else:
+                message = f'DSA-110 event received'
             res = cl.chat_postMessage(channel='#alert-driven-astro', text=message)
 
         return f"Set dsa command: {command.command} with {command.args}"
@@ -103,7 +106,10 @@ def set_ligo(command: Command, key: str):
                       "args": command.args}
 
         if command.command == 'observation' and cl is not None:
-            message = f'LIGO event {command.args["GraceID"]} received'  # more verbose logging by receiver script
+            if "GraceID" in command.args:
+                message = f'LIGO event {command.args["GraceID"]} received'  # more verbose logging by receiver script
+            else:
+                message = f'LIGO event received'
             res = cl.chat_postMessage(channel='#alert-driven-astro', text=message)
 
         return f"Set LIGO event: {command.command} with {command.args}"
