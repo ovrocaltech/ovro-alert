@@ -38,7 +38,7 @@ def post_to_slack(channel, message):
     gcn.notice_types.LVC_EARLY_WARNING,  # <-- new notice type here
     gcn.notice_types.LVC_PRELIMINARY,
     gcn.notice_types.LVC_INITIAL,
-    gcn.notice_types.LVC_UPDATE,
+#    gcn.notice_types.LVC_UPDATE,
     gcn.notice_types.LVC_RETRACTION)
 
 def process_gcn(payload, root, write=True):
@@ -47,7 +47,7 @@ def process_gcn(payload, root, write=True):
     params = {elem.attrib['name']:
               elem.attrib['value']
               for elem in root.iterfind('.//Param')}
-    
+
     
     # Respond to both 'test' in case of EarlyWarning alert or 'observation' 
     condition1 = root.attrib['role'] == 'test' and params['AlertType'] == 'EarlyWarning'
@@ -72,6 +72,7 @@ def process_gcn(payload, root, write=True):
     trig_cond4 = float(params['BNS']) + float(params['NSBH']) > BNS_NSBH_THRESH
     
     # Trigger the buffer if all conditions above are met
+#    if params['AlertType'] in ['Initial', 'Preliminary']:    # trigger often
     if trig_cond1 and trig_cond2 and trig_cond3 and trig_cond4:
         
         # Create a datetime object with the current time in UTC
@@ -106,6 +107,6 @@ def process_gcn(payload, root, write=True):
             # TODO: do we need to select on whether target is up?
 
     else:
-        print(f'Event {params["GraceID"]} did not pass selection: FAR {params["FAR"]}, BNS {params["BNS"]}, Terrestrial {params["Terrestrial"]}.')
+        print(f'{params["AlertType"]} event {params["GraceID"]} did not pass selection: FAR {params["FAR"]}, BNS {params["BNS"]}, Terrestrial {params["Terrestrial"]}.')
             
 gcn.listen(handler=process_gcn)
