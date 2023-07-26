@@ -1,8 +1,13 @@
-import requests
+from requests import Session
 import json
 from os import environ
 from astropy import time
 
+s = Session()
+s.headers.update({"Accept": "application/json", 'Content-Type': 'application/json', "Host": "ovro.caltech.edu"})
+
+#from urllib3.util import Retry
+#retries = Retry(total=5, backoff_factor=0.1, allowed_methods={'GET', 'PUT'})
 
 if "RELAY_KEY" in environ:
     RELAY_KEY = environ["RELAY_KEY"]
@@ -32,9 +37,8 @@ class AlertClient():
         """ Get command from relay server.
         """
 
-        headers = {"Accept": "application/json", "Host": "ovro.caltech.edu"}
-        resp = requests.get(url=self.fullroute(route=route), headers=headers, params={'key': RELAY_KEY},
-                            timeout=10)
+        resp = s.get(url=self.fullroute(route=route), params={'key': RELAY_KEY},
+                            timeout=9.05)
         if resp.status_code != 200:
             print(f'oops: {resp}')
         return resp.json()
@@ -43,11 +47,10 @@ class AlertClient():
         """ Put command to relay.
         """
 
-        headers = {"Accept": "application/json", 'Content-Type': 'application/json', "Host": "ovro.caltech.edu"}
         mjd = time.Time.now().mjd
         dd = {"command": command, "command_mjd": mjd, "args": args}
 
-        resp = requests.put(url=self.fullroute(route=route), headers=headers, data=json.dumps(dd),
-                            params={'key': RELAY_KEY})
+        resp = s.put(url=self.fullroute(route=route), data=json.dumps(dd),
+                            params={'key': RELAY_KEY}, timeout=9.05)
 
         return resp.status_code
