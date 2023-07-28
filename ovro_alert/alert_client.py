@@ -1,4 +1,6 @@
 from requests import Session
+from requests.adapters import HTTPAdapter
+from urllib3.util import Retry
 import json
 from os import environ
 from astropy import time
@@ -6,8 +8,10 @@ from astropy import time
 s = Session()
 s.headers.update({"Accept": "application/json", 'Content-Type': 'application/json', "Host": "ovro.caltech.edu"})
 
-#from urllib3.util import Retry
-#retries = Retry(total=5, backoff_factor=0.1, allowed_methods={'GET', 'PUT'})
+retry = Retry(total=5, backoff_factor=0.5, allowed_methods={'GET', 'PUT'})
+adapter = HTTPAdapter(max_retries=retry)
+s.mount("http://", adapter)
+s.mount("https://", adapter)
 
 if "RELAY_KEY" in environ:
     RELAY_KEY = environ["RELAY_KEY"]
