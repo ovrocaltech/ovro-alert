@@ -72,8 +72,8 @@ def process_gcn(payload, root, write=True):
     trig_cond4 = float(params['BNS']) + float(params['NSBH']) > BNS_NSBH_THRESH
     
     # Trigger the buffer if all conditions above are met
-    if params['AlertType'] in ['Initial', 'Preliminary']:    # trigger often
-#    if trig_cond1 and trig_cond2 and trig_cond3 and trig_cond4:
+#    if params['AlertType'] in ['Initial', 'Preliminary']:    # trigger often
+    if trig_cond1 and trig_cond2 and trig_cond3 and trig_cond4:
         
         # Create a datetime object with the current time in UTC
         now = datetime.datetime.utcnow()
