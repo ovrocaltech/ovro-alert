@@ -41,7 +41,11 @@ class DSAAlertClient(AlertClient):
             # Define a threshold for DM and angular distance
             dm_threshold = 5.0
             angular_distance_threshold = 0.1 * u.deg
-            
+          
+            #Ensure `voevent_dm' and `frb-dm' are floats
+            voevent_dm = float(voevent_dm)
+            frb_dm = float(frb_dm)
+
             # Compare DM and angular distance
             dm_difference = abs(voevent_dm - frb_dm)
             angular_distance = voevent_coord.separation(frb_coord)
