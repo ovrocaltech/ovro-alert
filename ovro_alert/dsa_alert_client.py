@@ -61,7 +61,7 @@ class DSAAlertClient(AlertClient):
             if dd2["command_mjd"] != dd["command_mjd"]:
                 dd = dd2.copy()
                 #print(f"DD ARGS: {dd['args']}")
-                #event_no = dd['args']['event_no']
+                event_no = dd['args'].get('event_no', None)
                 voe_dm = dd['args']['dm']
                 voe_ra, voe_dec, voe_err = dd['args']['position'].split(',')
                 voe_ra = float(voe_ra)
@@ -75,11 +75,13 @@ class DSAAlertClient(AlertClient):
                     repeater_of.append(frb['repeater_of'])
                 # If repeater association is confirmed, post to slack
                 if len(repeater_of) > 1:
-                    message = f"CHIME/FRB event BLANK: \n is associated with repeater {repeater_of[1]}"
+                    message = f"CHIME/FRB event {event_no}: \n is associated with repeater {repeater_of[1]}"
                     try:
                         response = cl.chat_postMessage(channel="#candidates", text=message, icon_emoji = ":zap:")
                     except Exception as e: # SlackApiError as e:
                         print(e)
+                else:
+                    print(f"{event_no} not matched to known repeater")
 
             else:
                 sleep(loop)
