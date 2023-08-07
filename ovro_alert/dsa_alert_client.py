@@ -50,7 +50,7 @@ class DSAAlertClient(AlertClient):
             dm_difference = abs(voevent_dm - frb_dm)
             angular_distance = voevent_coord.separation(frb_coord)
             
-            if dm_difference <= dm_threshold and angular_distance <= angular_distance_threshold:
+            if (dm_difference <= dm_threshold)*(angular_distance <= angular_distance_threshold):
                 matched_frbs.append(frb)
         
         return matched_frbs
