@@ -1,3 +1,5 @@
+import sys
+import logging
 from time import sleep
 from astropy.time import Time
 from ovro_alert.alert_client import AlertClient
