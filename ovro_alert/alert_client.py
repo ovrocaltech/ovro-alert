@@ -1,10 +1,11 @@
+import sys
+import logging
 from requests import Session
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
 import json
 from os import environ
 from astropy import time
-import logging
 
 logger = logging.getLogger(__name__)
 logHandler = logging.StreamHandler(sys.stdout)

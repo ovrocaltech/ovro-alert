@@ -1,6 +1,7 @@
 from os import environ
 from typing import Union
 import logging
+import sys
 
 from fastapi import FastAPI
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
@@ -10,7 +11,7 @@ from astropy import time
 from slack_sdk import WebClient
 
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('fastapi')
 logHandler = logging.StreamHandler(sys.stdout)
 logFormat = logging.Formatter('%(asctime)s [%(levelname)-8s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 logHandler.setFormatter(logFormat)
