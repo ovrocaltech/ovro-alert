@@ -9,8 +9,10 @@ import sys
 import logging
 
 logger = logging.getLogger(__name__)
-stderr_handler = logging.StreamHandler(sys.stderr)
-logger.addHandler(stderr_handler)
+logHandler = logging.StreamHandler(sys.stdout)
+logFormat = logging.Formatter('%(asctime)s [%(levelname)-8s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+logHandler.setFormatter(logFormat)
+logger.addHandler(logHandler)
 logger.setLevel(logging.DEBUG)
 
 
