@@ -11,13 +11,17 @@ import logging
 logger = logging.getLogger(__name__)
 stderr_handler = logging.StreamHandler(sys.stderr)
 logger.addHandler(stderr_handler)
-logger.set_log_level("info")
+logger.setLevel(logging.DEBUG)
 
 
 if "SLACK_TOKEN_CR" in environ:
     slack_token = environ["SLACK_TOKEN_CR"]
     slack_channel = "#alert-driven-astro"  # use your actual Slack channel (TBD)
     client = WebClient(token=slack_token)
+    logger.debug("Created slack client")
+else:
+    logger.debug("Created slack client")
+
 send_to_slack = True  # global variable to control whether to send to Slack
 
 ligoc = alert_client.AlertClient('ligo')
@@ -60,6 +64,7 @@ def process_gcn(payload, root, write=True):
     condition1 = root.attrib['role'] == 'test' and params['AlertType'] == 'EarlyWarning'
     condition2 = root.attrib['role'] == 'observation' # IMPORTANT! for real observations set to 'observation'
     if not (condition1 or condition2):
+        logger.debug("Received test event")
         return
 
     # If event is retracted, print it.
@@ -80,6 +85,7 @@ def process_gcn(payload, root, write=True):
     
     # Trigger the buffer if all conditions above are met
 #    if params['AlertType'] in ['Initial', 'Preliminary']:    # trigger often
+    logger.debug(f"Trigger criteria: {trig_cond1}, {trig_cond2}, {trig_cond3}, {trig_cond4}")
     if trig_cond1 and trig_cond2 and trig_cond3 and trig_cond4:
         
         # Create a datetime object with the current time in UTC
