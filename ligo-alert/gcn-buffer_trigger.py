@@ -5,6 +5,13 @@ from ovro_alert import alert_client
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from os import environ
+import sys
+import logging
+
+logger = logging.getLogger(__name__)
+stderr_handler = logging.StreamHandler(sys.stderr)
+logger.addHandler(stderr_handler)
+logger.set_log_level("info")
 
 
 if "SLACK_TOKEN_CR" in environ:
@@ -28,7 +35,7 @@ def post_to_slack(channel, message):
     try:
         response = client.chat_postMessage(channel=channel, text=message)
     except SlackApiError as e:
-        print(f"Error sending to Slack: {e.response['error']}")
+        logger.error(f"Error sending to Slack: {e.response['error']}")
 
 # Function to call every time a GCN is received.
 # Run only for notices of type
@@ -57,7 +64,7 @@ def process_gcn(payload, root, write=True):
 
     # If event is retracted, print it.
     if params['AlertType'] == 'Retraction':
-        print(params['GraceID'], 'was retracted')
+        logger.info(params['GraceID'], 'was retracted')
         return
 
     # Respond only to 'CBC' events. Change 'CBC' to 'Burst'
@@ -83,7 +90,7 @@ def process_gcn(payload, root, write=True):
         role = "observation" if condition1 else root.attrib["role"]
         msg_start = "sending EarlyWarning type of alert" if condition1 else "sending alert"
 
-        print(f'{msg_start} to ligo relay server with role {role}')
+        logger.info(f'{msg_start} to ligo relay server with role {role}')
         ligoc.set(role, args={'FAR': params['FAR'], 'BNS': params['BNS'],
                               'HasNS': params['HasNS'], 'Terrestrial': params['Terrestrial'],
                               'GraceID': params['GraceID'], 'AlertType': params['AlertType']})
@@ -107,6 +114,6 @@ def process_gcn(payload, root, write=True):
             # TODO: do we need to select on whether target is up?
 
     else:
-        print(f'{params["AlertType"]} event {params["GraceID"]} did not pass selection: FAR {params["FAR"]}, BNS {params["BNS"]}, Terrestrial {params["Terrestrial"]}.')
+        logger.info(f'{params["AlertType"]} event {params["GraceID"]} did not pass selection: FAR {params["FAR"]}, BNS {params["BNS"]}, Terrestrial {params["Terrestrial"]}.')
             
 gcn.listen(handler=process_gcn)
