@@ -4,6 +4,12 @@ from ovro_alert.alert_client import AlertClient
 from mnc import control
 import threading
 
+logger = logging.getLogger(__name__)
+logHandler = logging.StreamHandler(sys.stdout)
+logFormat = logging.Formatter('%(asctime)s [%(levelname)-8s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+logHandler.setFormatter(logFormat)
+logger.addHandler(logHandler)
+logger.setLevel(logging.DEBUG)
 
 delay = lambda dm, f1, f2: 4.149 * 1e3 * dm * (f2 ** (-2) - f1 ** (-2))
 
@@ -34,31 +40,31 @@ class LWAAlertClient(AlertClient):
                 ddc0 = ddc.copy()
 
                 if ddc["command"] == "observation":   # chime/ligo have command="observation" or "test"
-                    print("Received CHIME event")
+                    logger.info("Received CHIME event")
                     assert all(key in ddc["args"] for key in ["dm", "position"])
 #                    if ddc["args"]["known"]:   # TODO: check for sources we want to observe (e.g., by name or properties)
                     self.powerbeam(ddc["args"])
                 elif ddc["command"] == "test":
-                    print("Received CHIME test")
+                    logger.info("Received CHIME test")
             elif ddg["command_mjd"] != ddg0["command_mjd"]:
                 ddg0 = ddg.copy()
 
                 if ddg["command"] == "observation":   # TODO; check on types
-                    print("Received GCN event. Not observing yet")  # TODO: test
+                    logger.info("Received GCN event. Not observing yet")  # TODO: test
                     assert all(key in ddg["args"] for key in ["duration", "position"])
 #                    self.powerbeam(ddg["args"])
                 elif ddg["command"] == "test":
-                    print("Received GCN test")
+                    logger.info("Received GCN test")
 
             elif ddl["command_mjd"] != ddl0["command_mjd"]:
                 ddl0 = ddl.copy()
 
                 if ddl["command"] == "observation":   # chime/ligo have command="observation" or "test"
-                    print("Received LIGO event")
+                    logger.info("Received LIGO event")
                     nsamp = ddl["args"]["nsamp"] if "nsamp" in ddl["args"] else None
                     self.trigger(nsamp=nsamp)
                 elif ddl["command"] == "test":
-                    print("Received LIGO test")
+                    logger.info("Received LIGO test")
                     if 'nsamp' in ddl:
                         self.trigger(nsamp=ddl['nsamp'])
             else:
@@ -86,7 +92,7 @@ class LWAAlertClient(AlertClient):
             if pipeline.pipeline_id in path_map:
                 path = path_map[pipeline.pipeline_id]
                 pipeline.triggered_dump.trigger(ntime_per_file=ntime_per_file, nfile=nfile, dump_path=path)
-        print(f'Triggered {len(self.pipelines)} pipelines to record {nfile} files with {ntime_per_file} samples each.')
+        logger.info(f'Triggered {len(self.pipelines)} pipelines to record {nfile} files with {ntime_per_file} samples each.')
 
     def powerbeam(self, dd):
         """ Observe with power beam

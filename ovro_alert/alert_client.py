@@ -4,6 +4,15 @@ from urllib3.util import Retry
 import json
 from os import environ
 from astropy import time
+import logging
+
+logger = logging.getLogger(__name__)
+logHandler = logging.StreamHandler(sys.stdout)
+logFormat = logging.Formatter('%(asctime)s [%(levelname)-8s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+logHandler.setFormatter(logFormat)
+logger.addHandler(logHandler)
+logger.setLevel(logging.DEBUG)
+
 
 s = Session()
 s.headers.update({"Accept": "application/json", 'Content-Type': 'application/json', "Host": "ovro.caltech.edu"})
@@ -44,7 +53,7 @@ class AlertClient():
         resp = s.get(url=self.fullroute(route=route), params={'key': RELAY_KEY},
                             timeout=9.05)
         if resp.status_code != 200:
-            print(f'oops: {resp}')
+            logger.error(f'oops: {resp}')
         return resp.json()
 
     def set(self, command, args={}, password=RELAY_KEY, route=None):

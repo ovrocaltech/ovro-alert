@@ -1,5 +1,6 @@
 from os import environ
 from typing import Union
+import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
@@ -9,10 +10,18 @@ from astropy import time
 from slack_sdk import WebClient
 
 
+logger = logging.getLogger(__name__)
+logHandler = logging.StreamHandler(sys.stdout)
+logFormat = logging.Formatter('%(asctime)s [%(levelname)-8s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+logHandler.setFormatter(logFormat)
+logger.addHandler(logHandler)
+logger.setLevel(logging.DEBUG)
+
+
 if "SLACK_TOKEN_CR" in environ:
     cl = WebClient(token=environ["SLACK_TOKEN_CR"])
 else:
-    print("No slack token found. Will not push to slack.")
+    logger.warning("No slack token found. Will not push to slack.")
     cl = None
 
 if "RELAY_KEY" in environ:
