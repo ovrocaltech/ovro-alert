@@ -5,6 +5,12 @@ from astropy.time import Time
 from ovro_alert.alert_client import AlertClient
 from mnc import control
 import threading
+from slack_sdk import WebClient
+from slack_sdk.errors import SlackApiError
+from os import environ
+
+if "SLACK_TOKEN_LWA" in environ:
+    cl = WebClient(token=environ["SLACK_TOKEN_LWA"])
 
 logger = logging.getLogger(__name__)
 logHandler = logging.StreamHandler(sys.stdout)
@@ -45,6 +51,8 @@ class LWAAlertClient(AlertClient):
                     logger.info("Received CHIME event")
                     assert all(key in ddc["args"] for key in ["dm", "position"])
 #                    if ddc["args"]["known"]:   # TODO: check for sources we want to observe (e.g., by name or properties)
+                    response = cl.chat_postMessage(channel="#observing", text=f"Starting power beam on CHIME event: {ddc['args']}",
+                                                   icon_emoji = ":robot_face::")
                     self.powerbeam(ddc["args"])
                 elif ddc["command"] == "test":
                     logger.info("Received CHIME test")
@@ -64,6 +72,8 @@ class LWAAlertClient(AlertClient):
                 if ddl["command"] == "observation":   # chime/ligo have command="observation" or "test"
                     logger.info("Received LIGO event")
                     nsamp = ddl["args"]["nsamp"] if "nsamp" in ddl["args"] else None
+                    response = cl.chat_postMessage(channel="#observing", text=f"Starting voltage trigger on LIGO event: {ddl['args']}",
+                                                   icon_emoji = ":robot_face::")
                     self.trigger(nsamp=nsamp)
                 elif ddl["command"] == "test":
                     logger.info("Received LIGO test")
