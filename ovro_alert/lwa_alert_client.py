@@ -9,8 +9,6 @@ from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from os import environ
 
-if "SLACK_TOKEN_LWA" in environ:
-    cl = WebClient(token=environ["SLACK_TOKEN_LWA"])
 
 logger = logging.getLogger(__name__)
 logHandler = logging.StreamHandler(sys.stdout)
@@ -19,7 +17,14 @@ logHandler.setFormatter(logFormat)
 logger.addHandler(logHandler)
 logger.setLevel(logging.DEBUG)
 
+if "SLACK_TOKEN_LWA" in environ:
+    cl = WebClient(token=environ["SLACK_TOKEN_LWA"])
+else:
+    cl = None
+    logging.warning("No SLACK_TOKEN_LWA found. No slack updates.")
+    
 delay = lambda dm, f1, f2: 4.149 * 1e3 * dm * (f2 ** (-2) - f1 ** (-2))
+
 
 class LWAAlertClient(AlertClient):
     def __init__(self, con):
@@ -51,9 +56,12 @@ class LWAAlertClient(AlertClient):
                     logger.info("Received CHIME event")
                     assert all(key in ddc["args"] for key in ["dm", "position"])
 #                    if ddc["args"]["known"]:   # TODO: check for sources we want to observe (e.g., by name or properties)
-                    response = cl.chat_postMessage(channel="#observing", text=f"Starting power beam on CHIME event: {ddc['args']}",
-                                                   icon_emoji = ":robot_face::")
+                    if cl is not None:
+                        response = cl.chat_postMessage(channel="#observing",
+                                                       text=f"Starting power beam on CHIME event {ddc['args']['event_no']} with DM={ddc['args']['dm']}",
+                                                       icon_emoji = ":robot_face::")
                     self.powerbeam(ddc["args"])
+#                    self.submit_voltagebeam(ddc["args"])
                 elif ddc["command"] == "test":
                     logger.info("Received CHIME test")
             elif ddg["command_mjd"] != ddg0["command_mjd"]:
@@ -72,8 +80,9 @@ class LWAAlertClient(AlertClient):
                 if ddl["command"] == "observation":   # chime/ligo have command="observation" or "test"
                     logger.info("Received LIGO event")
                     nsamp = ddl["args"]["nsamp"] if "nsamp" in ddl["args"] else None
-                    response = cl.chat_postMessage(channel="#observing", text=f"Starting voltage trigger on LIGO event: {ddl['args']}",
-                                                   icon_emoji = ":robot_face::")
+                    if cl is not None:
+                        response = cl.chat_postMessage(channel="#observing", text=f"Starting voltage trigger on LIGO event: {ddl['args']}",
+                                                       icon_emoji = ":robot_face::")
                     self.trigger(nsamp=nsamp)
                 elif ddl["command"] == "test":
                     logger.info("Received LIGO test")
@@ -105,6 +114,13 @@ class LWAAlertClient(AlertClient):
                 path = path_map[pipeline.pipeline_id]
                 pipeline.triggered_dump.trigger(ntime_per_file=ntime_per_file, nfile=nfile, dump_path=path)
         logger.info(f'Triggered {len(self.pipelines)} pipelines to record {nfile} files with {ntime_per_file} samples each.')
+
+    def submit_voltagebeam(self, dd):
+        """ Submit an ASAP voltage beam observation
+        """
+
+        sdffile = None  # TODO: update template SDF and define here
+        ls.put_dict('/cmd/observing/submitsdf', {'filename': sdffile, 'mode': 'asap'})
 
     def powerbeam(self, dd):
         """ Observe with power beam
