@@ -1,13 +1,17 @@
 import sys
 import logging
 from time import sleep
-from astropy.time import Time
-from ovro_alert.alert_client import AlertClient
-from mnc import control
 import threading
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from os import environ
+from astropy.time import Time
+from ovro_alert.alert_client import AlertClient
+from mnc import control
+from observing import makesdf
+from dsastore import DsaStore
+
+ls = DsaStore()
 
 
 logger = logging.getLogger(__name__)
