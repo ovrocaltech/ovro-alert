@@ -9,9 +9,9 @@ from astropy.time import Time
 from ovro_alert.alert_client import AlertClient
 from mnc import control
 from observing import makesdf
-from dsastore import DsaStore
+from dsautils import dsa_store
 
-ls = DsaStore()
+ls = dsa_store.DsaStore()
 
 
 logger = logging.getLogger(__name__)
