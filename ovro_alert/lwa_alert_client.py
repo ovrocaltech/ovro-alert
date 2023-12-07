@@ -135,7 +135,7 @@ class LWAAlertClient(AlertClient):
 
         sdffile = '/tmp/trigger_powerbeam.sdf'
         makesdf.create('/tmp/trigger_voltagebeam.sdf', n_obs=1, sess_mode='VOLT', obs_mode='TRK_RADEC', beam_num=1,
-                       obs_start='now', obs_dur=d0*1e3, ra=ra, dec=dec)
+                       obs_start='now', obs_dur=int(d0*1e3), ra=ra, dec=dec)
         # TODO: test required parameters for voltage beam from SDF
 
         ls.put_dict('/cmd/observing/submitsdf', {'filename': sdffile, 'mode': 'asap'})
