@@ -1,13 +1,17 @@
 import sys
 import logging
 from time import sleep
-from astropy.time import Time
-from ovro_alert.alert_client import AlertClient
-from mnc import control
 import threading
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from os import environ
+from astropy.time import Time
+from ovro_alert.alert_client import AlertClient
+from mnc import control
+from observing import makesdf
+from dsautils import dsa_store
+
+ls = dsa_store.DsaStore()
 
 
 logger = logging.getLogger(__name__)
@@ -119,7 +123,41 @@ class LWAAlertClient(AlertClient):
         """ Submit an ASAP voltage beam observation
         """
 
-        sdffile = None  # TODO: update template SDF and define here
+        position = dd["position"].split(",")
+        ra = float(position[0])  # degrees
+        dec = float(position[1])
+        if 'duration' in dd:
+            d0 = float(dd['duration'])
+        else:
+            assert 'dm' in dd
+            dm = float(dd["dm"])
+            d0 = delay(dm, 1e9, 50) + 10  # Observe for the delay plus a bit more
+
+        sdffile = '/tmp/trigger_powerbeam.sdf'
+        makesdf.create('/tmp/trigger_voltagebeam.sdf', n_obs=1, sess_mode='VOLT', obs_mode='TRK_RADEC', beam_num=1,
+                       obs_start='now', obs_dur=int(d0*1e3), ra=ra, dec=dec)
+        # TODO: test required parameters for voltage beam from SDF
+
+        ls.put_dict('/cmd/observing/submitsdf', {'filename': sdffile, 'mode': 'asap'})
+
+    def submit_powerbeam(self, dd):
+        """ Submit an ASAP voltage beam observation
+        """
+
+        position = dd["position"].split(",")
+        ra = float(position[0])  # degrees
+        dec = float(position[1])
+        if 'duration' in dd:
+            d0 = float(dd['duration'])
+        else:
+            assert 'dm' in dd
+            dm = float(dd["dm"])
+            d0 = delay(dm, 1e9, 50) + 10  # Observe for the delay plus a bit more
+
+        sdffile = '/tmp/trigger_powerbeam.sdf'
+        makesdf.create('/tmp/trigger_powerbeam.sdf', n_obs=1, sess_mode='POWER', obs_mode='TRK_RADEC', beam_num=3,
+                       obs_start='now', obs_dur=d0*1e3, ra=ra, dec=dec, int_time=128)
+
         ls.put_dict('/cmd/observing/submitsdf', {'filename': sdffile, 'mode': 'asap'})
 
     def powerbeam(self, dd):
