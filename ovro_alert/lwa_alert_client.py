@@ -64,7 +64,7 @@ class LWAAlertClient(AlertClient):
                         response = cl.chat_postMessage(channel="#observing",
                                                        text=f"Starting power beam on CHIME event {ddc['args']['event_no']} with DM={ddc['args']['dm']}",
                                                        icon_emoji = ":robot_face::")
-                    self.powerbeam(ddc["args"])
+                    self.submit_powerbeam(ddc["args"])
 #                    self.submit_voltagebeam(ddc["args"])
                 elif ddc["command"] == "test":
                     logger.info("Received CHIME test")
