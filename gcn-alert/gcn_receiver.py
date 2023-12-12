@@ -6,7 +6,7 @@ gc = alert_client.AlertClient('gcn')
 
 # Define your custom handler here.
 @gcn.include_notice_types(
-    gcn.notice_types.SWIFT_BAT_ALARM_SHORT
+    gcn.notice_types.SWIFT_BAT_GRB_POS_ACK
     )
 def handler(payload, root):
     # Look up right ascension, declination, and error radius fields.
