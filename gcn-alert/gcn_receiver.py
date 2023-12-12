@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import gcn
 from ovro_alert import alert_client
+import voeventparse
 
 gc = alert_client.AlertClient('gcn')
 
@@ -10,6 +11,8 @@ gc = alert_client.AlertClient('gcn')
     )
 def handler(payload, root):
     # Look up right ascension, declination, and error radius fields.
+    ve = voeventparse.loads(payload)
+    print(f'test {ve}')
     pos2d = root.find('.//{*}Position2D')
     ra = float(pos2d.find('.//{*}C1').text)
     dec = float(pos2d.find('.//{*}C2').text)
