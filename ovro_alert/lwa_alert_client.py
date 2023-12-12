@@ -1,11 +1,34 @@
+import sys
+import logging
 from time import sleep
+import threading
+from slack_sdk import WebClient
+from slack_sdk.errors import SlackApiError
+from os import environ
 from astropy.time import Time
 from ovro_alert.alert_client import AlertClient
 from mnc import control
-import threading
+from observing import makesdf
+from dsautils import dsa_store
+
+ls = dsa_store.DsaStore()
 
 
+logger = logging.getLogger(__name__)
+logHandler = logging.StreamHandler(sys.stdout)
+logFormat = logging.Formatter('%(asctime)s [%(levelname)-8s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+logHandler.setFormatter(logFormat)
+logger.addHandler(logHandler)
+logger.setLevel(logging.DEBUG)
+
+if "SLACK_TOKEN_LWA" in environ:
+    cl = WebClient(token=environ["SLACK_TOKEN_LWA"])
+else:
+    cl = None
+    logging.warning("No SLACK_TOKEN_LWA found. No slack updates.")
+    
 delay = lambda dm, f1, f2: 4.149 * 1e3 * dm * (f2 ** (-2) - f1 ** (-2))
+
 
 class LWAAlertClient(AlertClient):
     def __init__(self, con):
@@ -21,11 +44,13 @@ class LWAAlertClient(AlertClient):
         ddc0 = self.get(route='chime')
         ddl0 = self.get(route='ligo')
         ddg0 = self.get(route='gcn')
+        ddd0 = self.get(route='dsa')
         while True:
             mjd = Time.now().mjd
             ddc = self.get(route='chime')
             ddl = self.get(route='ligo')
             ddg = self.get(route='gcn')
+            ddd = self.get(route='dsa')
             print(".", end="")
 
             # TODO: validate ddc and ddl have correct fields (and maybe reject malicious content?)
@@ -34,31 +59,52 @@ class LWAAlertClient(AlertClient):
                 ddc0 = ddc.copy()
 
                 if ddc["command"] == "observation":   # chime/ligo have command="observation" or "test"
-                    print("Received CHIME event")
+                    logger.info("Received CHIME event")
                     assert all(key in ddc["args"] for key in ["dm", "position"])
 #                    if ddc["args"]["known"]:   # TODO: check for sources we want to observe (e.g., by name or properties)
-                    self.powerbeam(ddc["args"])
+                    if cl is not None:
+                        response = cl.chat_postMessage(channel="#observing",
+                                                       text=f"Starting power beam on CHIME event {ddc['args']['event_no']} with DM={ddc['args']['dm']}",
+                                                       icon_emoji = ":robot_face::")
+                    self.submit_powerbeam(ddc["args"])
+#                    self.submit_voltagebeam(ddc["args"])
                 elif ddc["command"] == "test":
-                    print("Received CHIME test")
+                    logger.info("Received CHIME test")
+
             elif ddg["command_mjd"] != ddg0["command_mjd"]:
                 ddg0 = ddg.copy()
 
                 if ddg["command"] == "observation":   # TODO; check on types
-                    print("Received GCN event. Not observing yet")  # TODO: test
+                    logger.info("Received GCN event. Not observing yet")  # TODO: test
                     assert all(key in ddg["args"] for key in ["duration", "position"])
 #                    self.powerbeam(ddg["args"])
                 elif ddg["command"] == "test":
-                    print("Received GCN test")
+                    logger.info("Received GCN test")
+            elif ddd["command_mjd"] != ddd0["command_mjd"]:
+                ddd0 = ddd.copy()
+
+                if ddd["command"] == "observation":   # TODO; check on types
+                    logger.info("Received DSA-110 event.")
+                    assert all(key in ddd["args"] for key in ["dm", "ra", "dec"])
+                    if cl is not None:
+                        response = cl.chat_postMessage(channel="#observing", text=f"Starting power beam on DSA-110 event: DM={ddd['dm']}, RA={ddd['ra']}, DEC={ddd['dec']}",
+                                                       icon_emoji = ":robot_face::")
+                    self.submit_powerbeam({'dm': ddd['args']['dm'], 'position': f"{ddd['args']['ra']},{ddd['args']['dec']}"})
+                elif ddg["command"] == "test":
+                    logger.info("Received DSA-110 test")
 
             elif ddl["command_mjd"] != ddl0["command_mjd"]:
                 ddl0 = ddl.copy()
 
                 if ddl["command"] == "observation":   # chime/ligo have command="observation" or "test"
-                    print("Received LIGO event")
+                    logger.info("Received LIGO event")
                     nsamp = ddl["args"]["nsamp"] if "nsamp" in ddl["args"] else None
+                    if cl is not None:
+                        response = cl.chat_postMessage(channel="#observing", text=f"Starting voltage trigger on LIGO event: {ddl['args']}",
+                                                       icon_emoji = ":robot_face::")
                     self.trigger(nsamp=nsamp)
                 elif ddl["command"] == "test":
-                    print("Received LIGO test")
+                    logger.info("Received LIGO test")
                     if 'nsamp' in ddl:
                         self.trigger(nsamp=ddl['nsamp'])
             else:
@@ -86,7 +132,48 @@ class LWAAlertClient(AlertClient):
             if pipeline.pipeline_id in path_map:
                 path = path_map[pipeline.pipeline_id]
                 pipeline.triggered_dump.trigger(ntime_per_file=ntime_per_file, nfile=nfile, dump_path=path)
-        print(f'Triggered {len(self.pipelines)} pipelines to record {nfile} files with {ntime_per_file} samples each.')
+        logger.info(f'Triggered {len(self.pipelines)} pipelines to record {nfile} files with {ntime_per_file} samples each.')
+
+    def submit_voltagebeam(self, dd):
+        """ Submit an ASAP voltage beam observation
+        """
+
+        position = dd["position"].split(",")
+        ra = float(position[0])  # degrees
+        dec = float(position[1])
+        if 'duration' in dd:
+            d0 = float(dd['duration'])
+        else:
+            assert 'dm' in dd
+            dm = float(dd["dm"])
+            d0 = delay(dm, 1e9, 50) + 10  # Observe for the delay plus a bit more
+
+        sdffile = '/tmp/trigger_powerbeam.sdf'
+        makesdf.create('/tmp/trigger_voltagebeam.sdf', n_obs=1, sess_mode='VOLT', obs_mode='TRK_RADEC', beam_num=1,
+                       obs_start='now', obs_dur=int(d0*1e3), ra=ra, dec=dec)
+        # TODO: test required parameters for voltage beam from SDF
+
+        ls.put_dict('/cmd/observing/submitsdf', {'filename': sdffile, 'mode': 'asap'})
+
+    def submit_powerbeam(self, dd):
+        """ Submit an ASAP voltage beam observation
+        """
+
+        position = dd["position"].split(",")
+        ra = float(position[0])  # degrees
+        dec = float(position[1])
+        if 'duration' in dd:
+            d0 = float(dd['duration'])
+        else:
+            assert 'dm' in dd
+            dm = float(dd["dm"])
+            d0 = delay(dm, 1e9, 50) + 10  # Observe for the delay plus a bit more
+
+        sdffile = '/tmp/trigger_powerbeam.sdf'
+        makesdf.create('/tmp/trigger_powerbeam.sdf', n_obs=1, sess_mode='POWER', obs_mode='TRK_RADEC', beam_num=3,
+                       obs_start='now', obs_dur=d0*1e3, ra=ra, dec=dec, int_time=128)
+
+        ls.put_dict('/cmd/observing/submitsdf', {'filename': sdffile, 'mode': 'asap'})
 
     def powerbeam(self, dd):
         """ Observe with power beam

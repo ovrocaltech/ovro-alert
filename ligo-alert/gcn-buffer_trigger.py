@@ -5,12 +5,25 @@ from ovro_alert import alert_client
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from os import environ
+import sys
+import logging
+
+logger = logging.getLogger(__name__)
+logHandler = logging.StreamHandler(sys.stdout)
+logFormat = logging.Formatter('%(asctime)s [%(levelname)-8s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+logHandler.setFormatter(logFormat)
+logger.addHandler(logHandler)
+logger.setLevel(logging.DEBUG)
 
 
 if "SLACK_TOKEN_CR" in environ:
     slack_token = environ["SLACK_TOKEN_CR"]
     slack_channel = "#alert-driven-astro"  # use your actual Slack channel (TBD)
     client = WebClient(token=slack_token)
+    logger.debug("Created slack client")
+else:
+    logger.debug("Created slack client")
+
 send_to_slack = True  # global variable to control whether to send to Slack
 
 ligoc = alert_client.AlertClient('ligo')
@@ -28,7 +41,7 @@ def post_to_slack(channel, message):
     try:
         response = client.chat_postMessage(channel=channel, text=message)
     except SlackApiError as e:
-        print(f"Error sending to Slack: {e.response['error']}")
+        logger.error(f"Error sending to Slack: {e.response['error']}")
 
 # Function to call every time a GCN is received.
 # Run only for notices of type
@@ -53,11 +66,12 @@ def process_gcn(payload, root, write=True):
     condition1 = root.attrib['role'] == 'test' and params['AlertType'] == 'EarlyWarning'
     condition2 = root.attrib['role'] == 'observation' # IMPORTANT! for real observations set to 'observation'
     if not (condition1 or condition2):
+        logger.debug("Received test event")
         return
 
     # If event is retracted, print it.
     if params['AlertType'] == 'Retraction':
-        print(params['GraceID'], 'was retracted')
+        logger.info(params['GraceID'], 'was retracted')
         return
 
     # Respond only to 'CBC' events. Change 'CBC' to 'Burst'
@@ -73,6 +87,7 @@ def process_gcn(payload, root, write=True):
     
     # Trigger the buffer if all conditions above are met
 #    if params['AlertType'] in ['Initial', 'Preliminary']:    # trigger often
+    logger.debug(f"Trigger criteria: {trig_cond1}, {trig_cond2}, {trig_cond3}, {trig_cond4}")
     if trig_cond1 and trig_cond2 and trig_cond3 and trig_cond4:
         
         # Create a datetime object with the current time in UTC
@@ -83,7 +98,7 @@ def process_gcn(payload, root, write=True):
         role = "observation" if condition1 else root.attrib["role"]
         msg_start = "sending EarlyWarning type of alert" if condition1 else "sending alert"
 
-        print(f'{msg_start} to ligo relay server with role {role}')
+        logger.info(f'{msg_start} to ligo relay server with role {role}')
         ligoc.set(role, args={'FAR': params['FAR'], 'BNS': params['BNS'],
                               'HasNS': params['HasNS'], 'Terrestrial': params['Terrestrial'],
                               'GraceID': params['GraceID'], 'AlertType': params['AlertType']})
@@ -107,6 +122,6 @@ def process_gcn(payload, root, write=True):
             # TODO: do we need to select on whether target is up?
 
     else:
-        print(f'{params["AlertType"]} event {params["GraceID"]} did not pass selection: FAR {params["FAR"]}, BNS {params["BNS"]}, Terrestrial {params["Terrestrial"]}.')
+        logger.info(f'{params["AlertType"]} event {params["GraceID"]} did not pass selection: FAR {params["FAR"]}, BNS {params["BNS"]}, Terrestrial {params["Terrestrial"]}.')
             
 gcn.listen(handler=process_gcn)
