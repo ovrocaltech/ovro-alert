@@ -44,11 +44,13 @@ class LWAAlertClient(AlertClient):
         ddc0 = self.get(route='chime')
         ddl0 = self.get(route='ligo')
         ddg0 = self.get(route='gcn')
+        ddd0 = self.get(route='dsa')
         while True:
             mjd = Time.now().mjd
             ddc = self.get(route='chime')
             ddl = self.get(route='ligo')
             ddg = self.get(route='gcn')
+            ddd = self.get(route='dsa')
             print(".", end="")
 
             # TODO: validate ddc and ddl have correct fields (and maybe reject malicious content?)
@@ -68,6 +70,7 @@ class LWAAlertClient(AlertClient):
 #                    self.submit_voltagebeam(ddc["args"])
                 elif ddc["command"] == "test":
                     logger.info("Received CHIME test")
+
             elif ddg["command_mjd"] != ddg0["command_mjd"]:
                 ddg0 = ddg.copy()
 
@@ -77,6 +80,18 @@ class LWAAlertClient(AlertClient):
 #                    self.powerbeam(ddg["args"])
                 elif ddg["command"] == "test":
                     logger.info("Received GCN test")
+            elif ddd["command_mjd"] != ddd0["command_mjd"]:
+                ddd0 = ddd.copy()
+
+                if ddd["command"] == "observation":   # TODO; check on types
+                    logger.info("Received DSA-110 event.")
+                    assert all(key in ddd["args"] for key in ["dm", "ra", "dec"])
+                    if cl is not None:
+                        response = cl.chat_postMessage(channel="#observing", text=f"Starting power beam on DSA-110 event: DM={ddd['dm']}, RA={ddd['ra']}, DEC={ddd['dec']}",
+                                                       icon_emoji = ":robot_face::")
+                    self.submit_powerbeam({'dm': ddd['args']['dm'], 'position': f"{ddd['args']['ra']},{ddd['args']['dec']}"})
+                elif ddg["command"] == "test":
+                    logger.info("Received DSA-110 test")
 
             elif ddl["command_mjd"] != ddl0["command_mjd"]:
                 ddl0 = ddl.copy()
