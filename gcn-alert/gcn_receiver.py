@@ -26,7 +26,7 @@ def handler(payload, root):
     author = ve.Who.Author.shortName
 
     # Print.
-    print(f'Event from {author} at {dt.isoformat()}: RA, Dec = ({ra}, {dec}}, radius={radius}.')
+    print(f'Event from {author} at {dt.isoformat()}: RA, Dec = ({ra}, {dec}, radius={radius}.')
     print(f'Toplevel params: {toplevel_params.keys()}')
     print(f'Grouped params: {grouped_params.keys()}')
 
