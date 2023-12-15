@@ -35,7 +35,7 @@ class LWAAlertClient(AlertClient):
         super().__init__('lwa')
         self.con = con
         self.pipelines = [p for p in con.pipelines if p.pipeline_id in [2, 3]]
-        self.con.configure_xengine(recorders=['dr3'], full=False, calibratebeams=True)
+        self.con.configure_xengine(recorders=['dr3'], full=False, calibratebeams=True, force=True)
 
     def poll(self, loop=5):
         """ Poll the relay API for commands.
