@@ -26,6 +26,8 @@ class DSAAlertClient(AlertClient):
         with open(file_path, 'r') as json_file:
             self.frbs = json.load(json_file)
 
+        print(f'Setting up with {self.fullroute()} compared to events in {file_path}')
+
     def compare_voevent_with_frbs(self, voevent_dm, voevent_ra, voevent_dec):
         matched_frbs = []
         
@@ -63,7 +65,7 @@ class DSAAlertClient(AlertClient):
         while True:
             mjd = time.Time.now().mjd
             dd2 = self.get()
-            if dd2["command_mjd"] != dd["command_mjd"] and dd2['args']['role'] == 'observation':
+            if dd2["command_mjd"] != dd["command_mjd"] and dd2['command'] == 'observation':
                 dd = dd2.copy()
                 #print(f"DD ARGS: {dd['args']}")
                 event_no = dd['args'].get('event_no', None)
