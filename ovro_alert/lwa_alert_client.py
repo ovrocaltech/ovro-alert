@@ -35,7 +35,7 @@ class LWAAlertClient(AlertClient):
         super().__init__('lwa')
         self.con = con
         self.pipelines = [p for p in con.pipelines if p.pipeline_id in [2, 3]]
-        self.con.configure_xengine(recorders=['dr3'], full=False, calibratebeams=True)
+        self.con.configure_xengine(recorders=['dr3'], full=False, calibratebeams=True, force=True)
 
     def poll(self, loop=5):
         """ Poll the relay API for commands.
@@ -87,7 +87,7 @@ class LWAAlertClient(AlertClient):
                     logger.info("Received DSA-110 event.")
                     assert all(key in ddd["args"] for key in ["dm", "ra", "dec"])
                     if cl is not None:
-                        response = cl.chat_postMessage(channel="#observing", text=f"Starting power beam on DSA-110 event: DM={ddd['dm']}, RA={ddd['ra']}, DEC={ddd['dec']}",
+                        response = cl.chat_postMessage(channel="#observing", text=f"Starting power beam on DSA-110 event: DM={ddd['args']['dm']}, RA={ddd['args']['ra']}, DEC={ddd['args']['dec']}",
                                                        icon_emoji = ":robot_face::")
                     self.submit_powerbeam({'dm': ddd['args']['dm'], 'position': f"{ddd['args']['ra']},{ddd['args']['dec']}"})
                 elif ddg["command"] == "test":
