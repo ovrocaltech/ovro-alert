@@ -8,8 +8,6 @@ gc = alert_client.AlertClient('gcn')
 # Define your custom handler here.
 @gcn.include_notice_types(
     gcn.notice_types.SWIFT_BAT_GRB_POS_ACK,
-    gcn.notice_types.SWIFT_BAT_MONITOR,  # test
-    gcn.notice_types.FERMI_GBM_FLT_POS,  # test
     )
 def handler(payload, root):
     # parse
@@ -27,8 +25,7 @@ def handler(payload, root):
 
     # Print.
     print(f'Event from {author} at {dt.isoformat()}: RA, Dec = ({ra}, {dec}, radius={radius}.')
-    print(f'Toplevel params: {toplevel_params.keys()}')
-    print(f'Grouped params: {grouped_params.keys()}')
+    print(f'Bkg_dur: {toplevel_params["Bkg_Dur"]}. Rate_signif: {toplevel_params["Rate_Signif"]}.')
 
     # send it
     args = {'duration': 1800, 'position': f'{ra},{dec},{radius}'}
