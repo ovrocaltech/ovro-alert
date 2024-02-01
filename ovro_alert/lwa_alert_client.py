@@ -65,10 +65,10 @@ class LWAAlertClient(AlertClient):
 #                    if ddc["args"]["known"]:   # TODO: check for sources we want to observe (e.g., by name or properties)
                     if cl is not None:
                         response = cl.chat_postMessage(channel="#observing",
-                                                       text=f"Starting power beam on CHIME event {ddc['args']['event_no']} with DM={ddc['args']['dm']}",
+                                                       text=f"Starting drt1 beam on CHIME event {ddc['args']['event_no']} with DM={ddc['args']['dm']}",
                                                        icon_emoji = ":robot_face::")
-                    self.submit_powerbeam(ddc["args"])
-#                    self.submit_voltagebeam(ddc["args"])
+#                    self.submit_powerbeam(ddc["args"])
+                    self.submit_voltagebeam(ddc["args"])
                 elif ddc["command"] == "test":
                     logger.info("Received CHIME test")
 
