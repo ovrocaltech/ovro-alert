@@ -8,7 +8,7 @@ gc = alert_client.AlertClient('gcn')
 # Define your custom handler here.
 @gcn.include_notice_types(
     gcn.notice_types.SWIFT_BAT_GRB_POS_ACK,
-    )
+    )    # maybe also SWIFT_SC_SLEW to get Wait_Time to see if Swift is slewing promptly to event
 def handler(payload, root):
     # parse
     ve = voeventparse.loads(payload)
