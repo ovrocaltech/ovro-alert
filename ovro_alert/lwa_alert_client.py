@@ -29,13 +29,14 @@ else:
     
 delay = lambda dm, f1, f2: 4.149 * 1e3 * dm * (f2 ** (-2) - f1 ** (-2))
 
+RECORDER = 'drt1'
 
 class LWAAlertClient(AlertClient):
     def __init__(self, con):
         super().__init__('lwa')
         self.con = con
         self.pipelines = [p for p in con.pipelines if p.pipeline_id in [2, 3]]
-        self.con.configure_xengine(recorders=['dr3'], full=False, calibratebeams=True)
+        self.con.configure_xengine(recorders=[RECORDER], full=False, calibratebeams=True, force=True)
 
     def poll(self, loop=5):
         """ Poll the relay API for commands.
@@ -64,10 +65,10 @@ class LWAAlertClient(AlertClient):
 #                    if ddc["args"]["known"]:   # TODO: check for sources we want to observe (e.g., by name or properties)
                     if cl is not None:
                         response = cl.chat_postMessage(channel="#observing",
-                                                       text=f"Starting power beam on CHIME event {ddc['args']['event_no']} with DM={ddc['args']['dm']}",
+                                                       text=f"Starting drt1 beam on CHIME event {ddc['args']['event_no']} with DM={ddc['args']['dm']}",
                                                        icon_emoji = ":robot_face::")
-                    self.submit_powerbeam(ddc["args"])
-#                    self.submit_voltagebeam(ddc["args"])
+#                    self.submit_powerbeam(ddc["args"])
+                    self.submit_voltagebeam(ddc["args"])
                 elif ddc["command"] == "test":
                     logger.info("Received CHIME test")
 
@@ -87,7 +88,7 @@ class LWAAlertClient(AlertClient):
                     logger.info("Received DSA-110 event.")
                     assert all(key in ddd["args"] for key in ["dm", "ra", "dec"])
                     if cl is not None:
-                        response = cl.chat_postMessage(channel="#observing", text=f"Starting power beam on DSA-110 event: DM={ddd['dm']}, RA={ddd['ra']}, DEC={ddd['dec']}",
+                        response = cl.chat_postMessage(channel="#observing", text=f"Starting power beam on DSA-110 event: DM={ddd['args']['dm']}, RA={ddd['args']['ra']}, DEC={ddd['args']['dec']}",
                                                        icon_emoji = ":robot_face::")
                     self.submit_powerbeam({'dm': ddd['args']['dm'], 'position': f"{ddd['args']['ra']},{ddd['args']['dec']}"})
                 elif ddg["command"] == "test":
@@ -149,7 +150,7 @@ class LWAAlertClient(AlertClient):
             d0 = delay(dm, 1e9, 50) + 10  # Observe for the delay plus a bit more
 
         sdffile = '/tmp/trigger_powerbeam.sdf'
-        makesdf.create('/tmp/trigger_voltagebeam.sdf', n_obs=1, sess_mode='VOLT', obs_mode='TRK_RADEC', beam_num=1,
+        makesdf.create('/tmp/trigger_voltagebeam.sdf', n_obs=1, sess_mode='VOLT', obs_mode='TRK_RADEC', beam_num=int(RECORDER[-1:]),
                        obs_start='now', obs_dur=int(d0*1e3), ra=ra, dec=dec)
         # TODO: test required parameters for voltage beam from SDF
 
@@ -170,7 +171,7 @@ class LWAAlertClient(AlertClient):
             d0 = delay(dm, 1e9, 50) + 10  # Observe for the delay plus a bit more
 
         sdffile = '/tmp/trigger_powerbeam.sdf'
-        makesdf.create('/tmp/trigger_powerbeam.sdf', n_obs=1, sess_mode='POWER', obs_mode='TRK_RADEC', beam_num=3,
+        makesdf.create('/tmp/trigger_powerbeam.sdf', n_obs=1, sess_mode='POWER', obs_mode='TRK_RADEC', beam_num=int(RECORDER[-1:]),
                        obs_start='now', obs_dur=d0*1e3, ra=ra, dec=dec, int_time=128)
 
         ls.put_dict('/cmd/observing/submitsdf', {'filename': sdffile, 'mode': 'asap'})
@@ -194,12 +195,12 @@ class LWAAlertClient(AlertClient):
             dm = float(dd["dm"])
             d0 = delay(dm, 1e9, 50) + 10  # Observe for the delay plus a bit more
 
-        self.con.start_dr(recorders=['dr3'], duration=d0*1e3, time_avg=128) # (duration is in ms)
-        self.con.configure_xengine('dr3', calibratebeams=False, full=False)  # get beam control handlers
+        self.con.start_dr(recorders=[RECORDER], duration=d0*1e3, time_avg=1) # (duration is in ms)
+        self.con.configure_xengine(RECORDER, calibratebeams=False, full=False)  # get beam control handlers
 #        thread = threading.Thread(target=self.con.control_bf, kwargs={'num': 3, 'coord': (RA, Dec), 'track': True, 'duration': d0})
 #        thread.start()
 #        thread.join()
-        self.con.control_bf(num=3, coord=(RAh, Dec), track=True, duration=d0)  # RA must be in decimal hours
+        self.con.control_bf(num=int(RECORDER[-1:]), coord=(RAh, Dec), track=True, duration=d0)  # RA must be in decimal hours
 
 if __name__ == '__main__':
 #    xhosts = [f'lxdlwagpu0{i}' for i in [3,4,5,6,7,8]]  # remove bad gpus
