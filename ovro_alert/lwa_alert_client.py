@@ -90,7 +90,7 @@ class LWAAlertClient(AlertClient):
                     if cl is not None:
                         response = cl.chat_postMessage(channel="#observing", text=f"Starting power beam on DSA-110 event: DM={ddd['args']['dm']}, RA={ddd['args']['ra']}, DEC={ddd['args']['dec']}",
                                                        icon_emoji = ":robot_face::")
-                    self.submit_powerbeam({'dm': ddd['args']['dm'], 'position': f"{ddd['args']['ra']},{ddd['args']['dec']}"})
+                    self.submit_voltagebeam({'dm': ddd['args']['dm'], 'position': f"{ddd['args']['ra']},{ddd['args']['dec']}"})
                 elif ddg["command"] == "test":
                     logger.info("Received DSA-110 test")
 
