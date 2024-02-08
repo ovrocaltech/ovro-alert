@@ -149,8 +149,8 @@ class LWAAlertClient(AlertClient):
             dm = float(dd["dm"])
             d0 = delay(dm, 1e9, 50) + 10  # Observe for the delay plus a bit more
 
-        sdffile = '/tmp/trigger_powerbeam.sdf'
-        makesdf.create('/tmp/trigger_voltagebeam.sdf', n_obs=1, sess_mode='VOLT', obs_mode='TRK_RADEC', beam_num=int(RECORDER[-1:]),
+        sdffile = '/tmp/trigger_voltagebeam.sdf'
+        makesdf.create(sdffile, n_obs=1, sess_mode='VOLT', obs_mode='TRK_RADEC', beam_num=int(RECORDER[-1:]),
                        obs_start='now', obs_dur=int(d0*1e3), int_time=0, ra=ra, dec=dec)
         # TODO: test required parameters for voltage beam from SDF
 
@@ -171,7 +171,7 @@ class LWAAlertClient(AlertClient):
             d0 = delay(dm, 1e9, 50) + 10  # Observe for the delay plus a bit more
 
         sdffile = '/tmp/trigger_powerbeam.sdf'
-        makesdf.create('/tmp/trigger_powerbeam.sdf', n_obs=1, sess_mode='POWER', obs_mode='TRK_RADEC', beam_num=int(RECORDER[-1:]),
+        makesdf.create(sdffile, n_obs=1, sess_mode='POWER', obs_mode='TRK_RADEC', beam_num=int(RECORDER[-1:]),
                        obs_start='now', obs_dur=d0*1e3, ra=ra, dec=dec, int_time=128)
 
         ls.put_dict('/cmd/observing/submitsdf', {'filename': sdffile, 'mode': 'asap'})
