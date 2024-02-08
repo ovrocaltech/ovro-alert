@@ -30,8 +30,8 @@ ligoc = alert_client.AlertClient('ligo')
 
 # Define thresholds
 FAR_THRESH = 3.17e-9 # 1 event per decade
-ASTRO_PROB_THRESH = 0.9 # not Terrestrial
-HAS_NS_THRESH = 0.9 # HasNS probability
+ASTRO_PROB_THRESH = 0.99 # (0.9 recommended?) not Terrestrial
+HAS_NS_THRESH = 0 # (0.5 recommended?) HasNS probability
 BNS_NSBH_THRESH = 0 # Either BNS or NSBH probability
 
 
