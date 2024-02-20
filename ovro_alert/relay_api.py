@@ -33,7 +33,7 @@ else:
     RELAY_KEY = input("enter RELAY_KEY")
 
 app = FastAPI()
-app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*.caltech.edu", "localhost"])
+#app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*.caltech.edu"])
 templates = Jinja2Templates(directory="templates")
 
 dd = {"dsa": {"command": None, "command_mjd": None},

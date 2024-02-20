@@ -4,7 +4,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-DBPATH = '/Users/claw/code/relay.db'
+DBPATH = '/home/claw/code/relay.db'
 
 class Command(BaseModel):
     instrument: str
