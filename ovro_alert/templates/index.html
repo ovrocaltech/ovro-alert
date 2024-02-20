@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>OVRO-ALERT Relay Command History</title>
+    <style>
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        th, td {
+            border: 1px solid black;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+    <body>
+        <h1>OVRO-ALERT Relay Command History</h1>
+        <p>Below is a list of all relay commands sent to the OVRO-ALERT system.</p>
+        <p>Click on the headers to sort the table.</p>
+        <script>
+            function sortTable(column) {
+                var table, rows, switching, i, x, y, shouldSwitch;
+                table = document.getElementById("sortable-table");
+                switching = true;
+                while (switching) {
+                    switching = false;
+                    rows = table.rows;
+                    for (i = 1; i < (rows.length - 1); i++) {
+                        shouldSwitch = false;
+                        x = rows[i].getElementsByTagName("TD")[column];
+                        y = rows[i + 1].getElementsByTagName("TD")[column];
+                        if (x.innerHTML.toLowerCase() > y.innerHTML.toLowerCase()) {
+                            shouldSwitch = true;
+                            break;
+                        }
+                    }
+                    if (shouldSwitch) {
+                        rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+                        switching = true;
+                    }
+                }
+            }
+        </script>
+        <table id="sortable-table">
+            <tr>
+                <th onclick="sortTable(0)">Instrument</th>
+                <th onclick="sortTable(1)">Command</th>
+                <th onclick="sortTable(2)">Command MJD</th>
+                <th onclick="sortTable(3)">Args</th>
+            </tr>
+            {% for command in commands | sort(attribute='command_mjd') %}
+                <tr>
+                    <td>{{ command.instrument }}</td>
+                    <td>{{ command.command }}</td>
+                    <td>{{ command.command_mjd }}</td>
+                    <td>{{ command.args }}</td>
+                </tr>
+            {% endfor %}
+        </table>
+    </body>
+</html>
