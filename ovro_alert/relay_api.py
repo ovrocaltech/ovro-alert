@@ -179,7 +179,7 @@ def set_gcn(command: relay_db.Command, key: str):
     if key == RELAY_KEY:
         dd['gcn'] = {"command": command.command, "command_mjd": command.command_mjd,
                        "args": command.args}
-#        relay_db.set_command(command)
+        relay_db.set_command(command)
 
         if command.command == 'observation' and cl is not None:
             message = f'GCN event with args: {command.args}'  # TODO: parse this for clarity
