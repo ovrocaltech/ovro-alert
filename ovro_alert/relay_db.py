@@ -10,7 +10,7 @@ class Command(BaseModel):
     instrument: str
     command: str
     command_mjd: float
-    args: str
+    args: dict
 
 def connection_factory():
     """Create a connection to the database."""
@@ -49,7 +49,7 @@ def get_command(instrument: str):
         if row is None:
             return None
         instrument, command, command_mjd, args = row
-        return Command(instrument=instrument, command=command, command_mjd=command_mjd, args=args)
+        return Command(instrument=instrument, command=command, command_mjd=command_mjd, args=eval(args))
 
 
 def set_command(command: Command):
@@ -73,6 +73,6 @@ def get_commands():
         rows = c.fetchall()
         for row in rows:
             instrument, command, command_mjd, args = row
-            commands.append(Command(instrument=instrument, command=command, command_mjd=command_mjd, args=args))
+            commands.append(Command(instrument=instrument, command=command, command_mjd=command_mjd, args=eval(args)))
 
     return commands
