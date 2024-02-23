@@ -54,7 +54,9 @@ class LWAAlertClient(AlertClient):
 
                 if ddc["command"] == "observation":   # chime/ligo have command="observation" or "test"
                     logger.info("Received CHIME event")
-                    assert all(key in ddc["args"] for key in ["dm", "position"])
+                    if not all(key in ddc["args"] for key in ["dm", "position"]):
+                        logger.warning(f"CHIME args ({ddc['args']}) do not include 'dm' and 'position'. Skipping...")
+                        continue
 #                    if ddc["args"]["known"]:   # TODO: check for sources we want to observe (e.g., by name or properties)
                     if cl is not None:
                         response = cl.chat_postMessage(channel="#observing",
@@ -69,7 +71,10 @@ class LWAAlertClient(AlertClient):
 
                 if ddg["command"] == "observation":   # TODO; check on types
                     logger.info("Received GCN event. Not observing yet")  # TODO: test
-                    assert all(key in ddg["args"] for key in ["duration", "position"])
+                    if not all(key in ddg["args"] for key in ["duration", "position"]):
+                        logger.warning(f"GCN args ({ddg['args']}) do not include 'duration' and 'position'. Skipping...")
+                        continue
+# TO DO: decide on respnonse
 #                    self.powerbeam(ddg["args"])
                 elif ddg["command"] == "test":
                     logger.info("Received GCN test")
