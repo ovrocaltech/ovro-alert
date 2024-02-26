@@ -92,14 +92,15 @@ def set_dsa(command: relay_db.Command, key: str):
     if key == RELAY_KEY:
         dd['dsa'] = {"command": command.command, "command_mjd": command.command_mjd,
                      "args": command.args}
-        relay_db.set_command(command)
 
-        if command.command == 'observation' and cl is not None:
-            if "trigname" in command.args:
-                message = f'DSA-110 event {command.args["trigname"]} received'
-            else:
-                message = f'DSA-110 event received'
-            res = cl.chat_postMessage(channel='#alert-driven-astro', text=message)
+        if command.command == 'observation':
+            relay_db.set_command(command)
+            if cl is not None:
+                if "trigname" in command.args:
+                    message = f'DSA-110 event {command.args["trigname"]} received'
+                else:
+                    message = f'DSA-110 event received'
+                res = cl.chat_postMessage(channel='#alert-driven-astro', text=message)
 
         return f"Set dsa command: {command.command} with {command.args}"
     else:
@@ -121,14 +122,16 @@ def set_ligo(command: relay_db.Command, key: str):
     if key == RELAY_KEY:
         dd["ligo"] = {"command": command.command, "command_mjd": command.command_mjd,
                       "args": command.args}
-        relay_db.set_command(command)
 
-        if command.command == 'observation' and cl is not None:
-            if "GraceID" in command.args:
-                message = f'LIGO event {command.args["GraceID"]} received'  # more verbose logging by receiver script
-            else:
-                message = f'LIGO event received'
-            res = cl.chat_postMessage(channel='#alert-driven-astro', text=message)
+        if command.command == 'observation':
+            relay_db.set_command(command)
+
+            if cl is not None:
+                if "GraceID" in command.args:
+                    message = f'LIGO event {command.args["GraceID"]} received'  # more verbose logging by receiver script
+                else:
+                    message = f'LIGO event received'
+                res = cl.chat_postMessage(channel='#alert-driven-astro', text=message)
 
         return f"Set LIGO event: {command.command} with {command.args}"
     else:
@@ -150,14 +153,16 @@ def set_chime(command: relay_db.Command, key: str):
     if key == RELAY_KEY:
         dd['chime'] = {"command": command.command, "command_mjd": command.command_mjd,
                        "args": command.args}
-        relay_db.set_command(command)
 
-        if command.command == 'observation' and cl is not None:
-            if "event_no" in command.args:
-                message = f'CHIME/FRB event {command.args["event_no"]} received'  # more detail may be posted by reader client
-            else:
-                message = f'CHIME/FRB event received: {command.args}'
-            res = cl.chat_postMessage(channel='#alert-driven-astro', text=message)
+        if command.command == 'observation':
+            relay_db.set_command(command)
+
+            if cl is not None:
+                if "event_no" in command.args:
+                    message = f'CHIME/FRB event {command.args["event_no"]} received'  # more detail may be posted by reader client
+                else:
+                    message = f'CHIME/FRB event received: {command.args}'
+                res = cl.chat_postMessage(channel='#alert-driven-astro', text=message)
 
         return f"Set CHIME event: {command.command} with {command.args}"
     else:
@@ -179,11 +184,13 @@ def set_gcn(command: relay_db.Command, key: str):
     if key == RELAY_KEY:
         dd['gcn'] = {"command": command.command, "command_mjd": command.command_mjd,
                        "args": command.args}
-        relay_db.set_command(command)
 
-        if command.command == 'observation' and cl is not None:
-            message = f'GCN event with args: {command.args}'  # TODO: parse this for clarity
-            res = cl.chat_postMessage(channel='#alert-driven-astro', text=message)
+        if command.command == 'observation':
+            relay_db.set_command(command)
+
+            if cl is not None:
+                message = f'GCN event with args: {command.args}'  # TODO: parse this for clarity
+                res = cl.chat_postMessage(channel='#alert-driven-astro', text=message)
 
         return f"Set GCN event: {command.command} with {command.args}"
     else:
