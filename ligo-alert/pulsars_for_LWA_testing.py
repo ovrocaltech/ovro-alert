@@ -187,9 +187,16 @@ def process_pulsars(observe_time, plot, bright):
 
 
 def main():
-    '''
-    Main function.
-    '''
+    # Create an argument parser
+    parser = argparse.ArgumentParser(description='Pulsars for LWA observation test',
+                                     epilog='''Main function prints the following:
+                                              RA and Dec: The right ascension and declination of the pulsar in degrees.
+                                              Altitude: The altitude of the pulsar in degrees at the specified time, or the current time if not specified.
+                                              Flux at highest frequency: The flux of the pulsar at the highest frequency in mJy.
+                                              Highest frequency: The highest frequency in MHz.
+                                              DM: The dispersion measure of the pulsar in pc cm^-3.
+                                              Period: The period of the pulsar in s.
+                                              w50: The width of the pulsar's pulse at 50 percent of the peak intensity.''')
     # Create an argument parser
     parser = argparse.ArgumentParser(description='Pulsars for LWA observation test')
 
