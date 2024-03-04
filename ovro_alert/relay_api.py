@@ -49,11 +49,13 @@ async def startup_event():
     relay_db.create_db()
 
 
-@app.get("/", response_class=HTMLResponse)
-async def get_root(request: Request):
-    commands = relay_db.get_commands()
-    return templates.TemplateResponse("index.html", context={"request": request, "commands": commands})
-
+@app.get("/home", response_class=HTMLResponse)
+async def get_root(request: Request, key: str):
+    if key == RELAY_KEY:
+        commands = relay_db.get_commands()
+        return templates.TemplateResponse("index.html", context={"request": request, "commands": commands})
+    else:
+        return "Bad key"
 
 @app.get("/lwa")
 def get_lwa(key):
