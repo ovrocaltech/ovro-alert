@@ -31,7 +31,7 @@ ligoc = alert_client.AlertClient('ligo')
 # Define thresholds
 FAR_THRESH = 3.17e-9 # 1 event per decade
 ASTRO_PROB_THRESH = 0.9 # not Terrestrial
-HAS_NS_THRESH = 0.9 # HasNS probability
+HAS_NS_THRESH = 0.5 # HasNS probability
 BNS_NSBH_THRESH = 0 # Either BNS or NSBH probability
 
 
@@ -103,11 +103,12 @@ def process_gcn(payload, root, write=True):
                               'HasNS': params['HasNS'], 'Terrestrial': params['Terrestrial'],
                               'GraceID': params['GraceID'], 'AlertType': params['AlertType']})
 
+        message = f"LIGO {params['AlertType']} alert with GraceID: {params['GraceID']}" \
+                        f", Parameters: FAR {params['FAR']}, BNS {params['BNS']}, HasNS {params['HasNS']}" \
+                        f", Terrestrial {params['Terrestrial']}. Message sent at (UTC): {now.strftime('%Y-%m-%d %H:%M:%S')}."
+        logger.info(message)
         if send_to_slack:
-            slack_message = f"LIGO {params['AlertType']} alert with GraceID: {params['GraceID']}" \
-                            f", Parameters: FAR {params['FAR']}, BNS {params['BNS']}, HasNS {params['HasNS']}" \
-                            f", Terrestrial {params['Terrestrial']}. Message sent at (UTC): {now.strftime('%Y-%m-%d %H:%M:%S')}."
-            post_to_slack(slack_channel, slack_message)
+            post_to_slack(slack_channel, message)
 
 
         # Save bayestar map
