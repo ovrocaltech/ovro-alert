@@ -1,9 +1,7 @@
 # ovro-alert
-Code and services for sending, receiving, and using astronomical alerts at OVRO.
+Code and services for sending, receiving, and using astronomical alerts at OVRO. Operations instructions are documented in the [wiki](https://github.com/ovrocaltech/ovro-alert/wiki).
 
 ![diagram of connections](drawio/diagram.drawio.png)
-
-Operations documented in the [wiki](https://github.com/ovrocaltech/ovro-alert/wiki)
 
 ## Requirements
 - astropy
@@ -39,11 +37,6 @@ Design centered on sender (alert source).
 
 We need a way for OVRO to pull commands in from external server. `relay_api.py` is a REST API that allows a `get` and `set` method for the paths `/dsa` and `/lwa`. Services on the DSA-110 and OVRO-LWA private networks can poll the API for alerts.
 
-The API can be run with:
-`uvicorn relay_api:app --reload --host <ip> --port 8001`
-
-Service is available at <ip>:8001. Docs at `/docs`.
-
 Outside of relay:
 - CHIME/FRB alerts received and sent to slack directly.
 - DSA-110 alerts sent to Swift/GUANO directly. See code at [dsa110-event](https://github.com/dsa110/dsa110-event/blob/main/event/cli.py#L145).
@@ -67,7 +60,7 @@ As a low-frequency all-sky monitor, OVRO-LWA is well positioned to respond to fa
 - Trigger voltage buffer dump in response to LIGO NS merger events
 - Point a power beam at an FRB detected by CHIME or DSA-110
 
-An OVRO client example module is at `lwa_alert_client.py`.
+The OVRO-LWA observing client is in this repo.
 
 ### CHIME
 
@@ -77,8 +70,7 @@ CHIME/FRB has the highest low-resolution FRB discovery rate. It is a good source
 - Repoint DSA-110 (human in the loop)
 - Automatically point beam at OVRO-LWA
 
-The VOEvent receiver uses `twistd` to run the `comet` broker, like this:
-`twistd -n comet -v --subscribe chimefrb.physics.mcgill.ca --save-event --local-ivo ivo://caltech/comet_broker`
+The VOEvent receiver uses `twistd` to run the `comet` broker.
 
 ### LIGO
 
@@ -86,17 +78,20 @@ LIGO detects NS mergers and provides rough localizations to guide OVRO-LWA searc
 - Notify on slack
 - Automatically trigger voltage buffer dump at OVRO-LWA
 
+The LIGO receiver uses `pygcn` to parse the event stream.
+
 ### DSA-110
 
 DSA-110 discovers FRBs and provides rapid triggers to Swift/BAT and (optionally) repointing for XRT. Alerts received by GUANO. First implementation done for [realfast](https://github.com/realfastvla/realfast/blob/main/realfast/util.py#L98) and now working at DSA-110
 
-We need a way to send DSA-110 discovery alerts to OVRO-LWA. This could be done via `relay_api.py`.
-
 ### GCN
 
-Swift, Fermi, and other all-sky, high-energy transient search systems distribute alerts publicly with low latency. Short GRBs are caused by binary NS mergers, which may be detectable as prompt fast radio emission. We need a way to receive events and filter for short GRBs to:
+Swift, Fermi, and other all-sky, high-energy transient search systems distribute alerts publicly with low latency. Short GRBs are caused by binary NS mergers, which may be detectable as prompt fast radio emission. 
+We receive events and filter for short GRBs to:
 - Notify on slack
 - Automatically trigger beamforming at OVRO-LWA
+
+The GCN receiver uses `pygcn` to parse the event stream.
 
 ### Flarescope
 
