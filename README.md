@@ -22,25 +22,6 @@ Code and services for sending, receiving, and using astronomical alerts at OVRO.
 - We assume that response is faster than update rate to avoid losing events
 - Relay can also just hold info for analysis (e.g., comparing DSA/CHIME FRBs to list of repeaters)
 
-## Protocol
-
-Design centered on sender (alert source).
-
-| path | type | args |
-| ---  | ------- | ---- |
-| /ligo | test/observation | GraceID, nsamp |
-| /chime | test/observation | event_no, dm, position |
-| /dsa  | test/observation | trigname, dm, position |
-| /gcn  | test/observation | duration, position |
-
-## Command relay
-
-We need a way for OVRO to pull commands in from external server. `relay_api.py` is a REST API that allows a `get` and `set` method for the paths `/dsa` and `/lwa`. Services on the DSA-110 and OVRO-LWA private networks can poll the API for alerts.
-
-Outside of relay:
-- CHIME/FRB alerts received and sent to slack directly.
-- DSA-110 alerts sent to Swift/GUANO directly. See code at [dsa110-event](https://github.com/dsa110/dsa110-event/blob/main/event/cli.py#L145).
-
 ## Applications
 
 Alert scenarios:
