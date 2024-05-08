@@ -3,6 +3,8 @@ Code and services for sending, receiving, and using astronomical alerts at OVRO.
 
 ![diagram of connections](drawio/diagram.drawio.png)
 
+Operations documented in the [wiki](https://github.com/ovrocaltech/ovro-alert/wiki)
+
 ## Requirements
 - astropy
 - fastapi
@@ -61,7 +63,7 @@ Alert scenarios:
 
 ### OVRO-LWA
 
-As an low-freq all-sky monitor, OVRO-LWA is well positioned to respond to fast, dispersed transients. We need a way to poll the relay server and send commands for new OVRO-LWA observations. Two kinds of observation must be supported:
+As a low-frequency all-sky monitor, OVRO-LWA is well positioned to respond to fast, dispersed transients. We need a way to poll the relay server and send commands for new OVRO-LWA observations. Two kinds of observation must be supported:
 - Trigger voltage buffer dump in response to LIGO NS merger events
 - Point a power beam at an FRB detected by CHIME or DSA-110
 
@@ -84,6 +86,12 @@ LIGO detects NS mergers and provides rough localizations to guide OVRO-LWA searc
 - Notify on slack
 - Automatically trigger voltage buffer dump at OVRO-LWA
 
+### DSA-110
+
+DSA-110 discovers FRBs and provides rapid triggers to Swift/BAT and (optionally) repointing for XRT. Alerts received by GUANO. First implementation done for [realfast](https://github.com/realfastvla/realfast/blob/main/realfast/util.py#L98) and now working at DSA-110
+
+We need a way to send DSA-110 discovery alerts to OVRO-LWA. This could be done via `relay_api.py`.
+
 ### GCN
 
 Swift, Fermi, and other all-sky, high-energy transient search systems distribute alerts publicly with low latency. Short GRBs are caused by binary NS mergers, which may be detectable as prompt fast radio emission. We need a way to receive events and filter for short GRBs to:
@@ -96,9 +104,3 @@ We need a way to start a beamformed observation at OVRO-LWA in coincidence with 
 - Create SDF for a given (RA, Dec, start time, duration). Optionally set name or integration time.
 - Ensure beams are calibrated
 - Run SDF
-
-### DSA-110
-
-We need a way to send DSA-110 discovery alerts to Swift/GUANO. Example implementation exists for [realfast](https://github.com/realfastvla/realfast/blob/main/realfast/util.py#L98).
-
-We need a way to send DSA-110 discovery alerts to OVRO-LWA. This could be done via `relay_api.py`.
