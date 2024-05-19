@@ -26,7 +26,7 @@ if not client_id or not client_secret:
     sys.exit(1)
 
 slack_token = environ.get("SLACK_TOKEN_CR")
-slack_channel = "#alert-driven-astro"  # use your actual Slack channel
+slack_channel = "#alert-driven-astro"  
 send_to_slack = bool(slack_token)
 
 if slack_token:
@@ -35,7 +35,10 @@ if slack_token:
 
 consumer = Consumer(client_id=client_id, client_secret=client_secret)
 
-consumer.subscribe(['gcn.notices.swift.bat.guano'])  # Add 'gcn.notices.einstein_probe.wxt.alert' later?
+# Add 'gcn.notices.einstein_probe.wxt.alert' later? 
+# example of received json can be found here https://github.com/nasa-gcn/gcn-schema/blob/v4.0.0/gcn/notices/einstein_probe/wxt/alert.schema.example.json
+consumer.subscribe(['gcn.notices.swift.bat.guano'])  
+
 
 def post_to_slack(channel, message):
     """Post a message to a Slack channel."""
