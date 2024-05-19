@@ -60,7 +60,13 @@ while True:
             event_time = datetime.strptime(alert["trigger_time"], '%Y-%m-%dT%H:%M:%S.%fZ')
             current_time = datetime.utcnow()
 
-            if rate_duration < 2 and (current_time - event_time) < timedelta(minutes=10) and alert["alert_type"] == "initial":
+            if (
+                rate_duration < 2 
+                and (current_time - event_time) < timedelta(minutes=10)
+                and "ra" in alert
+                and "dec" in alert
+                and "radius" in alert
+            ):
                 logger.info(f'Event at {alert["alert_datetime"]}: RA, Dec = ({alert["ra"]}, {alert["dec"]}, radius={alert["radius"]}).')
                 logger.info(f'Rate_duration: {rate_duration}. Rate_snr: {alert["rate_snr"]}.')
 
