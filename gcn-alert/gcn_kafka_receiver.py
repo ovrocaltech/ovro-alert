@@ -71,10 +71,19 @@ while True:
                 logger.info(f'Rate_duration: {rate_duration}. Rate_snr: {alert["rate_snr"]}.')
 
                 # duration is set to one hour
-                args = {'duration': 3600, 'position': f'{alert["ra"]},{alert["dec"]},{alert["radius"]}'}
+                args = args = {
+                    'duration': 3600, 
+                    'position': f'{alert["ra"]},{alert["dec"]},{alert["radius"]}',
+                    'instrument': alert["instrument"],
+                    'mission': alert["mission"]
+                }
                 gc.set('gcn', args)
 
-                message = f"Swift/BAT-GUANO Alert: RA, Dec = ({alert['ra']}, {alert['dec']}, radius={alert['radius']}).\nRate_duration: {rate_duration}. Rate_snr: {alert['rate_snr']}."
+                message = (
+                    f"Swift/BAT-GUANO Alert: RA, Dec = ({alert['ra']}, {alert['dec']}, radius={alert['radius']}).\n"
+                    f"Rate_duration: {rate_duration}. Rate_snr: {alert['rate_snr']}.\n"
+                    f"Instrument: {alert['instrument']}. Mission: {alert['mission']}."
+                )
                 if send_to_slack:
                     post_to_slack(slack_channel, message)
 
