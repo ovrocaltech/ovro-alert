@@ -80,9 +80,9 @@ while True:
                 gc.set('gcn', args)
 
                 message = (
-                    f"Swift/BAT-GUANO Alert: RA, Dec = ({alert['ra']}, {alert['dec']}, radius={alert['radius']}).\n"
-                    f"Rate_duration: {rate_duration}. Rate_snr: {alert['rate_snr']}.\n"
-                    f"Instrument: {alert['instrument']}. Mission: {alert['mission']}."
+                    f"GCN alert: Instrument: {alert['instrument']}. Mission: {alert['mission']}.\n"
+                    f"RA, Dec = ({alert['ra']}, {alert['dec']}, radius={alert['radius']}).\n"
+                    f"Rate_duration: {rate_duration}. Rate_snr: {alert['rate_snr']}."
                 )
                 if send_to_slack:
                     post_to_slack(slack_channel, message)
