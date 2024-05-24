@@ -13,6 +13,7 @@ Code and services for sending, receiving, and using astronomical alerts at OVRO.
 - slack_sdk
 - astropy
 - pygcn
+- gcn-kafka
 
 ## Design and Assumptions
 
