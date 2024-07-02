@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from ovro_alert import alert_client
-from gcn_kafka import Consumer
+from confluent_kafka import Consumer, KafkaError
 from datetime import datetime, timedelta
 from os import environ
 import sys
@@ -26,14 +26,27 @@ if not client_id or not client_secret:
     sys.exit(1)
 
 slack_token = environ.get("SLACK_TOKEN_CR")
-slack_channel = "#alert-driven-astro"  
+slack_channel = "#alert-driven-astro"
 send_to_slack = bool(slack_token)
 
 if slack_token:
     slack_client = WebClient(token=slack_token)
     logger.debug("Created Slack client")
 
-consumer = Consumer(client_id=client_id, client_secret=client_secret)
+conf = {
+    'bootstrap.servers': '23.21.80.69:9092',  # Use IPv4 address of the Kafka broker
+    'group.id': 'gcn_group',
+    'auto.offset.reset': 'earliest',
+    'security.protocol': 'SASL_SSL',
+    'sasl.mechanism': 'OAUTHBEARER',
+    'sasl.oauthbearer.client.id': client_id,
+    'sasl.oauthbearer.client.secret': client_secret,
+    'ssl.ca.location': '/etc/ssl/certs/kafka-broker-ca.crt',  # Path to the Kafka broker's CA certificate
+    'enable.ssl.certificate.verification': True  #  SSL verification 
+}
+
+
+consumer = Consumer(conf)
 
 # Subscribe to both the Swift and Einstein Probe alert topics
 consumer.subscribe(['gcn.notices.swift.bat.guano', 'gcn.notices.einstein_probe.wxt.alert'])
