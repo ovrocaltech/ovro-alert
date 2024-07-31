@@ -1,6 +1,7 @@
 #!/usr/bin/env python
+import os
 from ovro_alert import alert_client
-from confluent_kafka import Consumer, KafkaError
+from gcn_kafka import Consumer
 from datetime import datetime, timedelta
 from os import environ
 import sys
@@ -18,6 +19,9 @@ logHandler.setFormatter(logFormat)
 logger.addHandler(logHandler)
 logger.setLevel(logging.DEBUG)
 
+logger.debug(f"GCN_KAFKA_CLIENT_ID: {os.getenv('GCN_KAFKA_CLIENT_ID')}")
+logger.debug(f"GCN_KAFKA_CLIENT_SECRET: {os.getenv('GCN_KAFKA_CLIENT_SECRET')}")
+
 client_id = environ.get("GCN_KAFKA_CLIENT_ID")
 client_secret = environ.get("GCN_KAFKA_CLIENT_SECRET")
 
@@ -33,20 +37,8 @@ if slack_token:
     slack_client = WebClient(token=slack_token)
     logger.debug("Created Slack client")
 
-conf = {
-    'bootstrap.servers': '23.21.80.69:9092',  # Use IPv4 address of the Kafka broker
-    'group.id': 'gcn_group',
-    'auto.offset.reset': 'earliest',
-    'security.protocol': 'SASL_SSL',
-    'sasl.mechanism': 'OAUTHBEARER',
-    'sasl.oauthbearer.client.id': client_id,
-    'sasl.oauthbearer.client.secret': client_secret,
-    'ssl.ca.location': '/etc/ssl/certs/kafka-broker-ca.crt',  # Path to the Kafka broker's CA certificate
-    'enable.ssl.certificate.verification': True  #  SSL verification 
-}
-
-
-consumer = Consumer(conf)
+# Connect as a consumer
+consumer = Consumer(client_id=client_id, client_secret=client_secret)
 
 # Subscribe to both the Swift and Einstein Probe alert topics
 consumer.subscribe(['gcn.notices.swift.bat.guano', 'gcn.notices.einstein_probe.wxt.alert'])
@@ -65,6 +57,7 @@ while True:
             continue
 
         try:
+            logger.debug(f'Received message: {message.value().decode("utf-8")}')
             alert = json.loads(message.value().decode('utf-8'))
             
             rate_duration = alert.get("rate_duration", None)
