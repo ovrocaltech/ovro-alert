@@ -15,24 +15,24 @@ logHandler.setFormatter(logFormat)
 logger.addHandler(logHandler)
 logger.setLevel(logging.DEBUG)
 
-
+slack_token = None
 if "SLACK_TOKEN_CR" in environ:
     slack_token = environ["SLACK_TOKEN_CR"]
     slack_channel = "#alert-driven-astro"  # use your actual Slack channel (TBD)
     client = WebClient(token=slack_token)
     logger.debug("Created slack client")
 else:
-    logger.debug("Created slack client")
+    logger.debug("Have not created slack client")
 
-send_to_slack = True  # global variable to control whether to send to Slack
+send_to_slack = bool(slack_token)  # global variable to control whether to send to Slack
 
 ligoc = alert_client.AlertClient('ligo')
 
 # Define thresholds
 FAR_THRESH = 3.17e-9 # 1 event per decade
 ASTRO_PROB_THRESH = 0.9 # not Terrestrial
-HAS_NS_THRESH = 0.5 # HasNS probability
-BNS_NSBH_THRESH = 0 # Either BNS or NSBH probability
+HAS_NS_THRESH = 0.0 # HasNS probability
+BNS_NSBH_THRESH = -1.0 # Either BNS or NSBH probability
 
 
 def post_to_slack(channel, message):
