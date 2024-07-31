@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import os
 from ovro_alert import alert_client
 from gcn_kafka import Consumer
 from datetime import datetime, timedelta
@@ -18,6 +19,9 @@ logHandler.setFormatter(logFormat)
 logger.addHandler(logHandler)
 logger.setLevel(logging.DEBUG)
 
+logger.debug(f"GCN_KAFKA_CLIENT_ID: {os.getenv('GCN_KAFKA_CLIENT_ID')}")
+logger.debug(f"GCN_KAFKA_CLIENT_SECRET: {os.getenv('GCN_KAFKA_CLIENT_SECRET')}")
+
 client_id = environ.get("GCN_KAFKA_CLIENT_ID")
 client_secret = environ.get("GCN_KAFKA_CLIENT_SECRET")
 
@@ -26,19 +30,18 @@ if not client_id or not client_secret:
     sys.exit(1)
 
 slack_token = environ.get("SLACK_TOKEN_CR")
-slack_channel = "#alert-driven-astro"  
+slack_channel = "#alert-driven-astro"
 send_to_slack = bool(slack_token)
 
 if slack_token:
     slack_client = WebClient(token=slack_token)
     logger.debug("Created Slack client")
 
+# Connect as a consumer
 consumer = Consumer(client_id=client_id, client_secret=client_secret)
 
-# Add 'gcn.notices.einstein_probe.wxt.alert' later? 
-# example of received json can be found here https://github.com/nasa-gcn/gcn-schema/blob/v4.0.0/gcn/notices/einstein_probe/wxt/alert.schema.example.json
-consumer.subscribe(['gcn.notices.swift.bat.guano'])  
-
+# Subscribe to both the Swift and Einstein Probe alert topics
+consumer.subscribe(['gcn.notices.swift.bat.guano', 'gcn.notices.einstein_probe.wxt.alert'])
 
 def post_to_slack(channel, message):
     """Post a message to a Slack channel."""
@@ -54,14 +57,18 @@ while True:
             continue
 
         try:
+            logger.debug(f'Received message: {message.value().decode("utf-8")}')
             alert = json.loads(message.value().decode('utf-8'))
             
-            rate_duration = alert["rate_duration"]
-            event_time = datetime.strptime(alert["trigger_time"], '%Y-%m-%dT%H:%M:%S.%fZ')
+            rate_duration = alert.get("rate_duration", None)
+            event_time_str = alert.get("trigger_time", None)
+            event_time = datetime.strptime(event_time_str, '%Y-%m-%dT%H:%M:%S.%fZ') if event_time_str else None
             current_time = datetime.utcnow()
 
             if (
-                rate_duration < 2 
+                rate_duration is not None 
+                and event_time is not None
+                and rate_duration < 2
                 and (current_time - event_time) < timedelta(minutes=10)
                 and "ra" in alert
                 and "dec" in alert
@@ -71,7 +78,7 @@ while True:
                 logger.info(f'Rate_duration: {rate_duration}. Rate_snr: {alert["rate_snr"]}.')
 
                 # duration is set to one hour
-                args = args = {
+                args = {
                     'duration': 3600, 
                     'position': f'{alert["ra"]},{alert["dec"]},{alert["radius"]}',
                     'instrument': alert["instrument"],
@@ -83,6 +90,35 @@ while True:
                     f"GCN alert: Instrument: {alert['instrument']}. Mission: {alert['mission']}.\n"
                     f"RA, Dec = ({alert['ra']}, {alert['dec']}, radius={alert['radius']}).\n"
                     f"Rate_duration: {rate_duration}. Rate_snr: {alert['rate_snr']}."
+                )
+                if send_to_slack:
+                    post_to_slack(slack_channel, message)
+            elif (
+                "ra" in alert
+                and "dec" in alert
+                and "ra_dec_error" in alert
+                and "net_count_rate" in alert
+                and "image_snr" in alert
+                and event_time is not None
+                and (current_time - event_time) < timedelta(minutes=10)
+                and alert["image_snr"] > 3
+            ):
+                logger.info(f'Event at {alert["alert_datetime"]}: RA, Dec = ({alert["ra"]}, {alert["dec"]}, ra_dec_error={alert["ra_dec_error"]}).')
+                logger.info(f'Net count rate: {alert["net_count_rate"]}. Image SNR: {alert["image_snr"]}.')
+
+                # duration is set to one hour
+                args = {
+                    'duration': 3600, 
+                    'position': f'{alert["ra"]},{alert["dec"]},{alert["ra_dec_error"]}',
+                    'instrument': alert["instrument"],
+                    'mission': alert.get("mission", "Unknown")
+                }
+                gc.set('gcn', args)
+
+                message = (
+                    f"GCN alert: Instrument: {alert['instrument']}.\n"
+                    f"RA, Dec = ({alert['ra']}, {alert['dec']}, ra_dec_error={alert['ra_dec_error']}).\n"
+                    f"Net count rate: {alert['net_count_rate']}. Image SNR: {alert['image_snr']}."
                 )
                 if send_to_slack:
                     post_to_slack(slack_channel, message)
