@@ -58,6 +58,9 @@ class AlertClient():
         except IncompleteRead:
             logger.error('IncompleteRead during get. Continuing...')
             return {}
+        except Exception as e:
+            logger.error(f'An unexpected error occurred during get: {type(e).__name__} - {e}')
+            return {}
 
         if resp.status_code != 200:
             logger.error(f'oops: {resp}')
