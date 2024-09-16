@@ -7,6 +7,7 @@ from slack_sdk.errors import SlackApiError
 from os import environ
 import sys
 import logging
+import collections
 
 logger = logging.getLogger(__name__)
 logHandler = logging.StreamHandler(sys.stdout)
@@ -15,25 +16,27 @@ logHandler.setFormatter(logFormat)
 logger.addHandler(logHandler)
 logger.setLevel(logging.DEBUG)
 
-
+slack_token = None
 if "SLACK_TOKEN_CR" in environ:
     slack_token = environ["SLACK_TOKEN_CR"]
     slack_channel = "#alert-driven-astro"  # use your actual Slack channel (TBD)
     client = WebClient(token=slack_token)
     logger.debug("Created slack client")
 else:
-    logger.debug("Created slack client")
+    logger.debug("Have not created slack client")
 
-send_to_slack = True  # global variable to control whether to send to Slack
+send_to_slack = bool(slack_token) # global variable to control whether to send to Slack
 
 ligoc = alert_client.AlertClient('ligo')
 
 # Define thresholds
-FAR_THRESH = 3.17e-9 # 1 event per decade
-ASTRO_PROB_THRESH = 0.9 # not Terrestrial
-HAS_NS_THRESH = 0.5 # HasNS probability
-BNS_NSBH_THRESH = 0 # Either BNS or NSBH probability
+FAR_THRESH = 3.17e-9  # 1 event per decade
+ASTRO_PROB_THRESH = 0.9  # not Terrestrial
+HAS_NS_THRESH = 0.5  # HasNS probability
+BNS_NSBH_THRESH = 0  # Either BNS or NSBH probability
 
+# Initialize deque for GraceID with a fixed size
+recent_graceids = collections.deque(maxlen=10)
 
 def post_to_slack(channel, message):
     """Post a message to a Slack channel."""
@@ -52,18 +55,16 @@ def post_to_slack(channel, message):
     gcn.notice_types.LVC_INITIAL,
 #    gcn.notice_types.LVC_UPDATE,
     gcn.notice_types.LVC_RETRACTION)
-
 def process_gcn(payload, root, write=True):
     
     # Read all of the VOEvent parameters from the "What" section.
     params = {elem.attrib['name']:
               elem.attrib['value']
               for elem in root.iterfind('.//Param')}
-
     
     # Respond to both 'test' in case of EarlyWarning alert or 'observation' 
     condition1 = root.attrib['role'] == 'test' and params['AlertType'] == 'EarlyWarning'
-    condition2 = root.attrib['role'] == 'observation' # IMPORTANT! for real observations set to 'observation'
+    condition2 = root.attrib['role'] == 'observation'  # IMPORTANT! for real observations set to 'observation'
     if not (condition1 or condition2):
         logger.debug("Received test event")
         return
@@ -78,6 +79,12 @@ def process_gcn(payload, root, write=True):
     if params['Group'] != 'CBC':
         return
     
+    # Check if the GraceID has already been processed
+    grace_id = params['GraceID']
+    if grace_id in recent_graceids:
+        logger.debug(f"GraceID {grace_id} already processed")
+        return
+
     # Define trigger conditions
     trig_cond1 = float(params['FAR']) <= FAR_THRESH
     trig_cond2 = (1 - float(params['Terrestrial'])) >= ASTRO_PROB_THRESH
@@ -85,7 +92,6 @@ def process_gcn(payload, root, write=True):
     trig_cond4 = float(params['BNS']) + float(params['NSBH']) > BNS_NSBH_THRESH
     
     # Trigger the buffer if all conditions above are met
-#    if params['AlertType'] in ['Initial', 'Preliminary']:    # trigger often
     logger.debug(f"Trigger criteria: {trig_cond1}, {trig_cond2}, {trig_cond3}, {trig_cond4}")
     if trig_cond1 and trig_cond2 and trig_cond3 and trig_cond4:
         
@@ -109,6 +115,8 @@ def process_gcn(payload, root, write=True):
         if send_to_slack:
             post_to_slack(slack_channel, message)
 
+        # Add the GraceID to the deque
+        recent_graceids.append(grace_id)
 
         # Save bayestar map
         if ('skymap_fits' in params) and False:  # turn this off for now

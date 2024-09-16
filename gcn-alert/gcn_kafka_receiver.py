@@ -62,19 +62,19 @@ while True:
             
             rate_duration = alert.get("rate_duration", None)
             event_time_str = alert.get("trigger_time", None)
-            event_time = datetime.strptime(event_time_str, '%Y-%m-%dT%H:%M:%S.%fZ') if event_time_str else None
-            current_time = datetime.utcnow()
+            #event_time = datetime.strptime(event_time_str, '%Y-%m-%dT%H:%M:%S.%fZ') if event_time_str else None
+            #current_time = datetime.utcnow()
 
             if (
                 rate_duration is not None 
-                and event_time is not None
+                #and event_time is not None
                 and rate_duration < 2
-                and (current_time - event_time) < timedelta(minutes=10)
+                #and (current_time - event_time) < timedelta(minutes=10)
                 and "ra" in alert
                 and "dec" in alert
                 and "radius" in alert
             ):
-                logger.info(f'Event at {alert["alert_datetime"]}: RA, Dec = ({alert["ra"]}, {alert["dec"]}, radius={alert["radius"]}).')
+                logger.info(f'Event at {alert["trigger_time"]}: RA, Dec = ({alert["ra"]}, {alert["dec"]}, radius={alert["radius"]}).')
                 logger.info(f'Rate_duration: {rate_duration}. Rate_snr: {alert["rate_snr"]}.')
 
                 # duration is set to one hour
@@ -99,11 +99,11 @@ while True:
                 and "ra_dec_error" in alert
                 and "net_count_rate" in alert
                 and "image_snr" in alert
-                and event_time is not None
-                and (current_time - event_time) < timedelta(minutes=10)
+                #and event_time is not None
+                #and (current_time - event_time) < timedelta(minutes=10)
                 and alert["image_snr"] > 3
             ):
-                logger.info(f'Event at {alert["alert_datetime"]}: RA, Dec = ({alert["ra"]}, {alert["dec"]}, ra_dec_error={alert["ra_dec_error"]}).')
+                logger.info(f'Event at {alert["trigger_time"]}: RA, Dec = ({alert["ra"]}, {alert["dec"]}, ra_dec_error={alert["ra_dec_error"]}).')
                 logger.info(f'Net count rate: {alert["net_count_rate"]}. Image SNR: {alert["image_snr"]}.')
 
                 # duration is set to one hour
