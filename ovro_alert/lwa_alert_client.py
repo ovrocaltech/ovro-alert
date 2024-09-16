@@ -55,6 +55,10 @@ class LWAAlertClient(AlertClient):
             print(".", end="")
 
             # TODO: validate ddc and ddl have correct fields (and maybe reject malicious content?)
+            if ("command_mjd" not in ddc) or ("command_mjd" not in ddl) or ("command_mjd" not in ddg) or ("command_mjd" not in ddd):
+                print(f"Could not get complete dict from relay: {ddc}, {ddl}, {ddg}, {ddd}.")
+                sleep(loop)
+                continue
 
             if ddc["command_mjd"] != ddc0["command_mjd"]:
                 ddc0 = ddc.copy()

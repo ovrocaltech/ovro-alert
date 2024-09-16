@@ -3,6 +3,7 @@ import logging
 from requests import Session
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
+from urllib3.exceptions import IncompleteRead
 import json
 from os import environ
 from astropy import time
@@ -51,10 +52,19 @@ class AlertClient():
         """ Get command from relay server.
         """
 
-        resp = s.get(url=self.fullroute(route=route), params={'key': RELAY_KEY},
-                            timeout=9.05)
+        try:
+            resp = s.get(url=self.fullroute(route=route), params={'key': RELAY_KEY},
+                         timeout=9.05)
+        except IncompleteRead:
+            logger.error('IncompleteRead during get. Continuing...')
+            return {}
+        except Exception as e:
+            logger.error(f'An unexpected error occurred during get: {type(e).__name__} - {e}')
+            return {}
+
         if resp.status_code != 200:
             logger.error(f'oops: {resp}')
+
         return resp.json()
 
     def set(self, command, args={}, password=RELAY_KEY, route=None):
