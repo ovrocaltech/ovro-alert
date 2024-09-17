@@ -54,6 +54,7 @@ while True:
     for message in consumer.consume(timeout=1):
         if message.error():
             logger.error(message.error())
+            post_to_slack(slack_channel, f'gcn_kafka_receiver.py. Error: {message.error()}')
             continue
 
         try:
@@ -125,3 +126,4 @@ while True:
 
         except Exception as e:
             logger.error(f'Error processing message: {e}')
+            post_to_slack(slack_channel, f'gcn_kafka_receiver.py. Error in while loop: {e}')
