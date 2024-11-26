@@ -143,7 +143,7 @@ class LWAAlertClient(AlertClient):
             if pipeline.pipeline_id in path_map:
                 path = path_map[pipeline.pipeline_id]
                 pipeline.triggered_dump.trigger(ntime_per_file=ntime_per_file, nfile=nfile, dump_path=path)
-        logger.info(f'Triggered {len(self.pipelines)} pipelines to record {nfile} files with {ntime_per_file} samples each ({ntime} sec).')
+        logger.info(f'Triggered {len(self.pipelines)} pipelines to record {nfile} files with {ntime_per_file} samples each ({dt} sec).')
 
     def submit_voltagebeam(self, dd):
         """ Submit an ASAP voltage beam observation
