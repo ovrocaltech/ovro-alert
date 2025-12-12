@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 import os
 from ovro_alert import alert_client
 from gcn_kafka import Consumer
@@ -30,18 +29,20 @@ if not client_id or not client_secret:
     sys.exit(1)
 
 slack_token = environ.get("SLACK_TOKEN_CR")
-slack_channel = "#alert-driven-astro"
+slack_channel = "#alert-driven-astro"  
 send_to_slack = bool(slack_token)
 
 if slack_token:
     slack_client = WebClient(token=slack_token)
     logger.debug("Created Slack client")
 
-# Connect as a consumer
-consumer = Consumer(client_id=client_id, client_secret=client_secret)
-
-# Subscribe to both the Swift and Einstein Probe alert topics
-consumer.subscribe(['gcn.notices.swift.bat.guano', 'gcn.notices.einstein_probe.wxt.alert'])
+consumer = Consumer(client_id=client_id,
+                    client_secret=client_secret,
+                    config = {'auto.offset.reset': 'earliest'})
+consumer.subscribe(['gcn.classic.text.SWIFT_BAT_MONITOR',
+                    'gcn.notices.einstein_probe.wxt.alert',
+                    'gcn.notices.svom.voevent',
+                    'gcn.classic.text.MAXI_KNOWN'])
 
 def post_to_slack(channel, message):
     """Post a message to a Slack channel."""
@@ -54,17 +55,19 @@ while True:
     for message in consumer.consume(timeout=1):
         if message.error():
             logger.error(message.error())
-            post_to_slack(slack_channel, f'gcn_kafka_receiver.py. Error: {message.error()}')
             continue
 
         try:
-            logger.debug(f'Received message: {message.value().decode("utf-8")}')
+            #logger.debug(f'Received message: {message.value().decode("utf-8")}')
             alert = json.loads(message.value().decode('utf-8'))
             
             rate_duration = alert.get("rate_duration", None)
             event_time_str = alert.get("trigger_time", None)
-            #event_time = datetime.strptime(event_time_str, '%Y-%m-%dT%H:%M:%S.%fZ') if event_time_str else None
-            #current_time = datetime.utcnow()
+            logger.debug(f'Received alert: mission={alert.get("mission", "Unknown")}, instrument={alert.get("instrument", "Unknown")}, trigger_time={event_time_str}')
+
+            event_time = datetime.strptime(event_time_str, '%Y-%m-%dT%H:%M:%S.%fZ') if event_time_str else None
+            current_time = datetime.utcnow()
+            print('alert', alert, 'current time', current_time, 'event time', event_time)
 
             if (
                 rate_duration is not None 
@@ -114,6 +117,7 @@ while True:
                     'instrument': alert["instrument"],
                     'mission': alert.get("mission", "Unknown")
                 }
+
                 gc.set('gcn', args)
 
                 message = (
@@ -126,4 +130,4 @@ while True:
 
         except Exception as e:
             logger.error(f'Error processing message: {e}')
-            post_to_slack(slack_channel, f'gcn_kafka_receiver.py. Error in while loop: {e}')
+

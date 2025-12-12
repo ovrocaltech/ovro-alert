@@ -73,6 +73,7 @@ class AlertClient():
 
         mjd = time.Time.now().mjd
         dd = {"instrument": route if route else self.route, "command": command, "command_mjd": mjd, "args": args}
+        logger.debug(f"Sending PUT request with data: {dd}")
 
         resp = s.put(url=self.fullroute(route=route), data=json.dumps(dd),
                             params={'key': RELAY_KEY}, timeout=9.05)
