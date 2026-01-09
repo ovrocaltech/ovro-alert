@@ -39,35 +39,38 @@ if slack_token:
 consumer = Consumer(client_id=client_id,
                     client_secret=client_secret,
                     config = {'auto.offset.reset': 'earliest'})
-consumer.subscribe(['gcn.classic.text.SWIFT_BAT_MONITOR',
-                    'gcn.notices.einstein_probe.wxt.alert',
-                    'gcn.notices.svom.voevent',
-                    'gcn.classic.text.MAXI_KNOWN'])
+consumer.subscribe(['gcn.notices.einstein_probe.wxt.alert',
+                    'gcn.notices.fermi.gbm.alert',
+                    'gcn.notices.chime.frb',
+                    'gcn.notices.swift.bat.guano'])
 
 def post_to_slack(channel, message):
     """Post a message to a Slack channel."""
     try:
-        response = slack_client.chat_postMessage(channel=channel, text=message)
+ #       response = slack_client.chat_postMessage(channel=channel, text=message)
+        print(message)
     except SlackApiError as e:
         logger.error(f"Error sending to Slack: {e.response['error']}")
 
 while True:
-    for message in consumer.consume(timeout=1):
+    for message in consumer.consume(timeout=5):
         if message.error():
             logger.error(message.error())
             continue
 
         try:
             #logger.debug(f'Received message: {message.value().decode("utf-8")}')
+            topic = message.topic()
+            offset = message.offset()
+            print(f'Topic: {topic}. Offset: {offset}')
             alert = json.loads(message.value().decode('utf-8'))
-            
             rate_duration = alert.get("rate_duration", None)
             event_time_str = alert.get("trigger_time", None)
             logger.debug(f'Received alert: mission={alert.get("mission", "Unknown")}, instrument={alert.get("instrument", "Unknown")}, trigger_time={event_time_str}')
 
             event_time = datetime.strptime(event_time_str, '%Y-%m-%dT%H:%M:%S.%fZ') if event_time_str else None
             current_time = datetime.utcnow()
-            print('alert', alert, 'current time', current_time, 'event time', event_time)
+            print('current time', current_time, 'event time', event_time)
 
             if (
                 rate_duration is not None 
