@@ -41,9 +41,10 @@ consumer = Consumer(client_id=client_id,
                     client_secret=client_secret,
                     config = {'auto.offset.reset': 'earliest'})
 consumer.subscribe(['gcn.notices.einstein_probe.wxt.alert',
-                    'gcn.notices.fermi.gbm.alert',
+                    'gcn.classic.voevent.FERMI_GBM_GND_POS',
+                    'gcn.classic.voevent.MAXI_KNOWN',
                     'gcn.notices.chime.frb',
-                    'gcn.notices.swift.bat.guano'])
+                    'gcn.classic.voevent.SWIFT_BAT_GRB_POS_ACK'])
 
 
 def _safe_float(text):
