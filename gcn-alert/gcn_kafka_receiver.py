@@ -19,32 +19,7 @@ logHandler.setFormatter(logFormat)
 logger.addHandler(logHandler)
 logger.setLevel(logging.DEBUG)
 
-logger.debug(f"GCN_KAFKA_CLIENT_ID: {os.getenv('GCN_KAFKA_CLIENT_ID')}")
-logger.debug(f"GCN_KAFKA_CLIENT_SECRET: {os.getenv('GCN_KAFKA_CLIENT_SECRET')}")
-
-client_id = environ.get("GCN_KAFKA_CLIENT_ID")
-client_secret = environ.get("GCN_KAFKA_CLIENT_SECRET")
-
-if not client_id or not client_secret:
-    logger.error("GCN_KAFKA_CLIENT_ID and GCN_KAFKA_CLIENT_SECRET must be set in the environment.")
-    sys.exit(1)
-
-slack_token = environ.get("SLACK_TOKEN_CR")
-slack_channel = "#alert-driven-astro"  
-send_to_slack = bool(slack_token)
-
-if slack_token:
-    slack_client = WebClient(token=slack_token)
-    logger.debug("Created Slack client")
-
-consumer = Consumer(client_id=client_id,
-                    client_secret=client_secret,
-                    config = {'auto.offset.reset': 'earliest'})
-consumer.subscribe(['gcn.notices.einstein_probe.wxt.alert',
-                    'gcn.classic.voevent.FERMI_GBM_GND_POS',
-                    'gcn.classic.voevent.MAXI_KNOWN',
-                    'gcn.notices.chime.frb',
-                    'gcn.classic.voevent.SWIFT_BAT_GRB_POS_ACK'])
+slack_channel = "#alert-driven-astro"
 
 
 def _safe_float(text):
@@ -67,10 +42,23 @@ def parse_voevent(payload_text):
         elem = root.find(path, ns)
         return elem.text.strip() if elem is not None and elem.text else None
 
-    ra = _safe_float(find_text('.//voe:WhereWhen//voe:Position2D//voe:Value2/voe:C1'))
-    dec = _safe_float(find_text('.//voe:WhereWhen//voe:Position2D//voe:Value2/voe:C2'))
-    radius = _safe_float(find_text('.//voe:WhereWhen//voe:Position2D/voe:Error2Radius'))
-    trigger_time = find_text('.//voe:WhereWhen//voe:TimeInstant/voe:ISOTime')
+    # Debug: Log the XML structure
+    logger.debug(f"VOEvent XML structure (first 1000 chars): {payload_text[:1000]}")
+
+    # Try multiple XPath patterns for coordinates (Swift uses different structures)
+    ra = (_safe_float(find_text('.//voe:WhereWhen//voe:Position2D//voe:Value2/voe:C1')) or
+          _safe_float(find_text('.//voe:WhereWhen//voe:ObsDataLocation//voe:ObservationLocation//voe:AstroCoords//voe:Position2D//voe:Value2/voe:C1')))
+    
+    dec = (_safe_float(find_text('.//voe:WhereWhen//voe:Position2D//voe:Value2/voe:C2')) or
+           _safe_float(find_text('.//voe:WhereWhen//voe:ObsDataLocation//voe:ObservationLocation//voe:AstroCoords//voe:Position2D//voe:Value2/voe:C2')))
+    
+    radius = (_safe_float(find_text('.//voe:WhereWhen//voe:Position2D/voe:Error2Radius')) or
+              _safe_float(find_text('.//voe:WhereWhen//voe:ObsDataLocation//voe:ObservationLocation//voe:AstroCoords//voe:Position2D/voe:Error2Radius')))
+    
+    trigger_time = (find_text('.//voe:WhereWhen//voe:TimeInstant/voe:ISOTime') or
+                    find_text('.//voe:WhereWhen//voe:ObsDataLocation//voe:ObservationLocation//voe:AstroCoords//voe:Time//voe:TimeInstant/voe:ISOTime'))
+    
+    logger.debug(f"Parsed coordinates: ra={ra}, dec={dec}, radius={radius}, trigger_time={trigger_time}")
 
     data = {
         'ra': ra,
@@ -137,7 +125,7 @@ def parse_event_time(event_time_str):
         logger.debug(f"Could not parse event_time: {event_time_str}")
         return None
 
-def post_to_slack(channel, message):
+def post_to_slack(channel, message, slack_client):
     """Post a message to a Slack channel."""
     try:
  #       response = slack_client.chat_postMessage(channel=channel, text=message)
@@ -145,8 +133,38 @@ def post_to_slack(channel, message):
     except SlackApiError as e:
         logger.error(f"Error sending to Slack: {e.response['error']}")
 
-while True:
-    for message in consumer.consume(timeout=5):
+
+if __name__ == "__main__":
+    logger.debug(f"GCN_KAFKA_CLIENT_ID: {os.getenv('GCN_KAFKA_CLIENT_ID')}")
+    logger.debug(f"GCN_KAFKA_CLIENT_SECRET: {os.getenv('GCN_KAFKA_CLIENT_SECRET')}")
+
+    client_id = environ.get("GCN_KAFKA_CLIENT_ID")
+    client_secret = environ.get("GCN_KAFKA_CLIENT_SECRET")
+
+    if not client_id or not client_secret:
+        logger.error("GCN_KAFKA_CLIENT_ID and GCN_KAFKA_CLIENT_SECRET must be set in the environment.")
+        sys.exit(1)
+
+    slack_token = environ.get("SLACK_TOKEN_CR")
+    send_to_slack = bool(slack_token)
+
+    if slack_token:
+        slack_client = WebClient(token=slack_token)
+        logger.debug("Created Slack client")
+    else:
+        slack_client = None
+
+    consumer = Consumer(client_id=client_id,
+                        client_secret=client_secret,
+                        config = {'auto.offset.reset': 'earliest'})
+    consumer.subscribe(['gcn.notices.einstein_probe.wxt.alert',
+                        'gcn.classic.voevent.FERMI_GBM_GND_POS',
+                        'gcn.classic.voevent.MAXI_KNOWN',
+                        'gcn.notices.chime.frb',
+                        'gcn.classic.voevent.SWIFT_BAT_GRB_POS_ACK'])
+
+    while True:
+        for message in consumer.consume(timeout=5):
         if message.error():
             logger.error(message.error())
             continue
@@ -165,7 +183,7 @@ while True:
             )
 
             event_time = parse_event_time(event_time_str)
-            current_time = datetime.utcnow()
+            current_time = datetime.utcnow(), slack_client
             print('current time', current_time, 'event time', event_time)
 
             if (
@@ -225,10 +243,10 @@ while True:
                     f"Net count rate: {alert['net_count_rate']}. Image SNR: {alert['image_snr']}."
                 )
                 if send_to_slack:
-                    post_to_slack(slack_channel, message)
+                    post_to_slack(slack_channel, message, slack_client)
             else:
                 logger.info(f"Alert did not match known criteria; format={alert_format}; keys={list(alert.keys())}")
 
-        except Exception as e:
-            logger.error(f'Error processing message: {e}')
+            except Exception as e:
+                logger.error(f'Error processing message: {e}')
 
