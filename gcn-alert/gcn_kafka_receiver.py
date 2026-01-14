@@ -165,88 +165,89 @@ if __name__ == "__main__":
 
     while True:
         for message in consumer.consume(timeout=5):
-        if message.error():
-            logger.error(message.error())
-            continue
+            if message.error():
+                logger.error(message.error())
+                continue
 
-        try:
-            #logger.debug(f'Received message: {message.value().decode("utf-8")}')
-            topic = message.topic()
-            offset = message.offset()
-            print(f'Topic: {topic}. Offset: {offset}')
-            alert, alert_format = parse_alert_payload(message.value())
-            rate_duration = alert.get("rate_duration", None)
-            event_time_str = alert.get("trigger_time", None)
-            logger.debug(
-                f'Received {alert_format} alert: mission={alert.get("mission", "Unknown")}, '
-                f'instrument={alert.get("instrument", "Unknown")}, trigger_time={event_time_str}'
-            )
-
-            event_time = parse_event_time(event_time_str)
-            current_time = datetime.utcnow(), slack_client
-            print('current time', current_time, 'event time', event_time)
-
-            if (
-                rate_duration is not None 
-                #and event_time is not None
-                and rate_duration < 2
-                #and (current_time - event_time) < timedelta(minutes=10)
-                and "ra" in alert
-                and "dec" in alert
-                and "radius" in alert
-            ):
-                logger.info(f'Event at {alert["trigger_time"]}: RA, Dec = ({alert["ra"]}, {alert["dec"]}, radius={alert["radius"]}).')
-                logger.info(f'Rate_duration: {rate_duration}. Rate_snr: {alert["rate_snr"]}.')
-
-                # duration is set to one hour
-                args = {
-                    'duration': 3600, 
-                    'position': f'{alert["ra"]},{alert["dec"]},{alert["radius"]}',
-                    'instrument': alert["instrument"],
-                    'mission': alert["mission"]
-                }
-                gc.set('gcn', args)
-
-                message = (
-                    f"GCN alert: Instrument: {alert.get('instrument', 'Unknown')}. Mission: {alert.get('mission', 'Unknown')}.\n"
-                    f"RA, Dec = ({alert['ra']}, {alert['dec']}, radius={alert['radius']}).\n"
-                    f"Rate_duration: {rate_duration}. Rate_snr: {alert.get('rate_snr', 'N/A')}."
+            try:
+                #logger.debug(f'Received message: {message.value().decode("utf-8")}')
+                topic = message.topic()
+                offset = message.offset()
+                print(f'Topic: {topic}. Offset: {offset}')
+                alert, alert_format = parse_alert_payload(message.value())
+                rate_duration = alert.get("rate_duration", None)
+                event_time_str = alert.get("trigger_time", None)
+                logger.debug(
+                    f'Received {alert_format} alert: mission={alert.get("mission", "Unknown")}, '
+                    f'instrument={alert.get("instrument", "Unknown")}, trigger_time={event_time_str}'
                 )
-                if send_to_slack:
-                    post_to_slack(slack_channel, message)
-            elif (
-                "ra" in alert
-                and "dec" in alert
-                and "ra_dec_error" in alert
-                and "net_count_rate" in alert
-                and "image_snr" in alert
-                #and event_time is not None
-                #and (current_time - event_time) < timedelta(minutes=10)
-                and alert["image_snr"] > 3
-            ):
-                logger.info(f'Event at {alert["trigger_time"]}: RA, Dec = ({alert["ra"]}, {alert["dec"]}, ra_dec_error={alert["ra_dec_error"]}).')
-                logger.info(f'Net count rate: {alert["net_count_rate"]}. Image SNR: {alert["image_snr"]}.')
 
-                # duration is set to one hour
-                args = {
-                    'duration': 3600, 
-                    'position': f'{alert["ra"]},{alert["dec"]},{alert["ra_dec_error"]}',
-                    'instrument': alert["instrument"],
-                    'mission': alert.get("mission", "Unknown")
-                }
+                event_time = parse_event_time(event_time_str)
+                current_time = datetime.utcnow()
+                print('current time', current_time, 'event time', event_time)
 
-                gc.set('gcn', args)
+                if (
+                    rate_duration is not None 
+                    #and event_time is not None
+                    and rate_duration < 2
+                    #and (current_time - event_time) < timedelta(minutes=10)
+                    and "ra" in alert
+                    and "dec" in alert
+                    and "radius" in alert
+                ):
+                    logger.info(f'Event at {alert["trigger_time"]}: RA, Dec = ({alert["ra"]}, {alert["dec"]}, radius={alert["radius"]}).')
+                    logger.info(f'Rate_duration: {rate_duration}. Rate_snr: {alert["rate_snr"]}.')
 
-                message = (
-                    f"GCN alert: Instrument: {alert.get('instrument', 'Unknown')}.\n"
-                    f"RA, Dec = ({alert['ra']}, {alert['dec']}, ra_dec_error={alert['ra_dec_error']}).\n"
-                    f"Net count rate: {alert['net_count_rate']}. Image SNR: {alert['image_snr']}."
-                )
-                if send_to_slack:
-                    post_to_slack(slack_channel, message, slack_client)
-            else:
-                logger.info(f"Alert did not match known criteria; format={alert_format}; keys={list(alert.keys())}")
+                    # duration is set to one hour
+                    args = {
+                        'duration': 3600, 
+                        'position': f'{alert["ra"]},{alert["dec"]},{alert["radius"]}',
+                        'instrument': alert["instrument"],
+                        'mission': alert["mission"]
+                    }
+                    gc.set('gcn', args)
+
+                    message = (
+                        f"GCN alert: Instrument: {alert.get('instrument', 'Unknown')}. Mission: {alert.get('mission', 'Unknown')}.\n"
+                        f"RA, Dec = ({alert['ra']}, {alert['dec']}, radius={alert['radius']}).\n"
+                        f"Rate_duration: {rate_duration}. Rate_snr: {alert.get('rate_snr', 'N/A')}."
+                    )
+                    if send_to_slack:
+                        post_to_slack(slack_channel, message, slack_client)
+                elif (
+                    "ra" in alert
+                    and "dec" in alert
+                    and "ra_dec_error" in alert
+                    and "net_count_rate" in alert
+                    and "image_snr" in alert
+                    #and event_time is not None
+                    #and (current_time - event_time) < timedelta(minutes=10)
+                    and alert["image_snr"] > 3
+                ):
+                    logger.info(f'Event at {alert["trigger_time"]}: RA, Dec = ({alert["ra"]}, {alert["dec"]}, ra_dec_error={alert["ra_dec_error"]}).')
+                    logger.info(f'Net count rate: {alert["net_count_rate"]}. Image SNR: {alert["image_snr"]}.')
+
+                    # duration is set to one hour
+                    args = {
+                        'duration': 3600, 
+                        'position': f'{alert["ra"]},{alert["dec"]},{alert["ra_dec_error"]}',
+                        'instrument': alert["instrument"],
+                        'mission': alert.get("mission", "Unknown")
+                    }
+
+                    gc.set('gcn', args)
+
+                    message = (
+                        f"GCN alert: Instrument: {alert.get('instrument', 'Unknown')}.\n"
+                        f"RA, Dec = ({alert['ra']}, {alert['dec']}, ra_dec_error={alert['ra_dec_error']}).\n"
+                        f"Net count rate: {alert['net_count_rate']}. Image SNR: {alert['image_snr']}."
+                    )
+                    if send_to_slack:
+                        post_to_slack(slack_channel, message, slack_client)
+                else:
+                    logger.info(f"Alert did not match known criteria; format={alert_format}; keys={list(alert.keys())}")
 
             except Exception as e:
+                logger.error(f'Error processing message: {e}')
                 logger.error(f'Error processing message: {e}')
 
