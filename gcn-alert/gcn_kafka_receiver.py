@@ -47,25 +47,38 @@ def parse_voevent(payload_text):
         elem = root.find(f'.//{{{ns_uri}}}{tag}')
         return elem.text.strip() if elem is not None and elem.text else None
 
+    def iter_local(tag_name):
+        """Yield elements whose localname matches tag_name, ignoring namespaces."""
+        for elem in root.iter():
+            if elem.tag.split('}')[-1] == tag_name:
+                yield elem
+
     # Debug: Log the XML structure
     logger.debug(f"VOEvent XML structure (first 1000 chars): {payload_text[:1000]}")
 
     # Try multiple XPath patterns for coordinates (Swift uses different structures)
-    ra = (_safe_float(find_text('.//voe:WhereWhen//voe:Position2D//voe:Value2/voe:C1')) or
-          _safe_float(find_text('.//voe:WhereWhen//voe:ObsDataLocation//voe:ObservationLocation//voe:AstroCoords//voe:Position2D//voe:Value2/voe:C1')) or
-          _safe_float(find_text_ns('C1')))
-    
-    dec = (_safe_float(find_text('.//voe:WhereWhen//voe:Position2D//voe:Value2/voe:C2')) or
-           _safe_float(find_text('.//voe:WhereWhen//voe:ObsDataLocation//voe:ObservationLocation//voe:AstroCoords//voe:Position2D//voe:Value2/voe:C2')) or
-           _safe_float(find_text_ns('C2')))
-    
-    radius = (_safe_float(find_text('.//voe:WhereWhen//voe:Position2D/voe:Error2Radius')) or
-              _safe_float(find_text('.//voe:WhereWhen//voe:ObsDataLocation//voe:ObservationLocation//voe:AstroCoords//voe:Position2D/voe:Error2Radius')) or
-              _safe_float(find_text_ns('Error2Radius')))
-    
-    trigger_time = (find_text('.//voe:WhereWhen//voe:TimeInstant/voe:ISOTime') or
-                    find_text('.//voe:WhereWhen//voe:ObsDataLocation//voe:ObservationLocation//voe:AstroCoords//voe:Time//voe:TimeInstant/voe:ISOTime') or
-                    find_text_ns('ISOTime'))
+    def first_position2d_values():
+        # Namespace-agnostic search for Position2D (findall with namespaces doesn't work reliably)
+        for pos in iter_local('Position2D'):
+            c1 = next((child for child in pos.iter() if child.tag.split('}')[-1] == 'C1'), None)
+            c2 = next((child for child in pos.iter() if child.tag.split('}')[-1] == 'C2'), None)
+            err = next((child for child in pos.iter() if child.tag.split('}')[-1] == 'Error2Radius'), None)
+            if c1 is not None or c2 is not None or err is not None:
+                return (
+                    _safe_float(c1.text.strip()) if c1 is not None and c1.text else None,
+                    _safe_float(c2.text.strip()) if c2 is not None and c2.text else None,
+                    _safe_float(err.text.strip()) if err is not None and err.text else None,
+                )
+        return (None, None, None)
+
+    ra, dec, radius = first_position2d_values()
+
+    # Use namespace-agnostic approach for ISOTime as well
+    trigger_time = None
+    for elem in iter_local('ISOTime'):
+        if elem.text:
+            trigger_time = elem.text.strip()
+            break
     
     logger.debug(f"Parsed coordinates: ra={ra}, dec={dec}, radius={radius}, trigger_time={trigger_time}")
 
@@ -84,7 +97,7 @@ def parse_voevent(payload_text):
             data[key] = cast(value) if cast else value
 
     # Pull a few common params if they are present.
-    for param in root.findall('.//voe:What/voe:Param', ns):
+    for param in iter_local('Param'):
         name = (param.attrib.get('name') or '').lower()
         ucd = (param.attrib.get('ucd') or '').lower()
         value = param.attrib.get('value') or (param.text.strip() if param.text else None)
