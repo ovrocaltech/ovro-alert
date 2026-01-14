@@ -36,10 +36,15 @@ def parse_voevent(payload_text):
     except ElementTree.ParseError:
         return None
 
-    ns = {'voe': 'http://www.ivoa.net/xml/VOEvent/v2.0'}
+    ns_uri = root.tag[root.tag.find('{') + 1: root.tag.find('}')] if '{' in root.tag else 'http://www.ivoa.net/xml/VOEvent/v2.0'
+    ns = {'voe': ns_uri}
 
     def find_text(path):
         elem = root.find(path, ns)
+        return elem.text.strip() if elem is not None and elem.text else None
+
+    def find_text_ns(tag):
+        elem = root.find(f'.//{{{ns_uri}}}{tag}')
         return elem.text.strip() if elem is not None and elem.text else None
 
     # Debug: Log the XML structure
@@ -47,16 +52,20 @@ def parse_voevent(payload_text):
 
     # Try multiple XPath patterns for coordinates (Swift uses different structures)
     ra = (_safe_float(find_text('.//voe:WhereWhen//voe:Position2D//voe:Value2/voe:C1')) or
-          _safe_float(find_text('.//voe:WhereWhen//voe:ObsDataLocation//voe:ObservationLocation//voe:AstroCoords//voe:Position2D//voe:Value2/voe:C1')))
+          _safe_float(find_text('.//voe:WhereWhen//voe:ObsDataLocation//voe:ObservationLocation//voe:AstroCoords//voe:Position2D//voe:Value2/voe:C1')) or
+          _safe_float(find_text_ns('C1')))
     
     dec = (_safe_float(find_text('.//voe:WhereWhen//voe:Position2D//voe:Value2/voe:C2')) or
-           _safe_float(find_text('.//voe:WhereWhen//voe:ObsDataLocation//voe:ObservationLocation//voe:AstroCoords//voe:Position2D//voe:Value2/voe:C2')))
+           _safe_float(find_text('.//voe:WhereWhen//voe:ObsDataLocation//voe:ObservationLocation//voe:AstroCoords//voe:Position2D//voe:Value2/voe:C2')) or
+           _safe_float(find_text_ns('C2')))
     
     radius = (_safe_float(find_text('.//voe:WhereWhen//voe:Position2D/voe:Error2Radius')) or
-              _safe_float(find_text('.//voe:WhereWhen//voe:ObsDataLocation//voe:ObservationLocation//voe:AstroCoords//voe:Position2D/voe:Error2Radius')))
+              _safe_float(find_text('.//voe:WhereWhen//voe:ObsDataLocation//voe:ObservationLocation//voe:AstroCoords//voe:Position2D/voe:Error2Radius')) or
+              _safe_float(find_text_ns('Error2Radius')))
     
     trigger_time = (find_text('.//voe:WhereWhen//voe:TimeInstant/voe:ISOTime') or
-                    find_text('.//voe:WhereWhen//voe:ObsDataLocation//voe:ObservationLocation//voe:AstroCoords//voe:Time//voe:TimeInstant/voe:ISOTime'))
+                    find_text('.//voe:WhereWhen//voe:ObsDataLocation//voe:ObservationLocation//voe:AstroCoords//voe:Time//voe:TimeInstant/voe:ISOTime') or
+                    find_text_ns('ISOTime'))
     
     logger.debug(f"Parsed coordinates: ra={ra}, dec={dec}, radius={radius}, trigger_time={trigger_time}")
 
@@ -68,9 +77,16 @@ def parse_voevent(payload_text):
         'raw_format': 'voevent',
     }
 
+    def set_if_missing(key, value, cast=None):
+        if value is None:
+            return
+        if key not in data or data[key] is None:
+            data[key] = cast(value) if cast else value
+
     # Pull a few common params if they are present.
     for param in root.findall('.//voe:What/voe:Param', ns):
         name = (param.attrib.get('name') or '').lower()
+        ucd = (param.attrib.get('ucd') or '').lower()
         value = param.attrib.get('value') or (param.text.strip() if param.text else None)
         if not name or value is None:
             continue
@@ -78,6 +94,10 @@ def parse_voevent(payload_text):
             data[name] = value
         elif name in ('rate_duration', 'rate_snr', 'image_snr', 'net_count_rate', 'ra_dec_error'):
             data[name] = _safe_float(value)
+        elif name in ('point_ra',) or ucd == 'pos.eq.ra':
+            set_if_missing('ra', value, _safe_float)
+        elif name in ('point_dec',) or ucd == 'pos.eq.dec':
+            set_if_missing('dec', value, _safe_float)
 
     # Remove keys with None values to avoid misleading downstream logic.
     return {k: v for k, v in data.items() if v is not None}
