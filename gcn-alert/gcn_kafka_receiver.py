@@ -229,7 +229,7 @@ if __name__ == "__main__":
                     and "radius" in alert
                 ):
                     logger.info(f'Event at {alert["trigger_time"]}: RA, Dec = ({alert["ra"]}, {alert["dec"]}, radius={alert["radius"]}).')
-                    logger.info(f'Rate_duration: {rate_duration}. Rate_snr: {alert["rate_snr"]}.')
+                    logger.info(f'Rate_duration: {rate_duration}. Rate_snr: {alert.get("rate_snr", "N/A")}.')
 
                     # duration is set to one hour
                     args = {
