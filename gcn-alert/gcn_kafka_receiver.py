@@ -112,6 +112,15 @@ def parse_voevent(payload_text):
         elif name in ('point_dec',) or ucd == 'pos.eq.dec':
             set_if_missing('dec', value, _safe_float)
 
+    # Derive mission and instrument from IVORN when not provided by Params (e.g. Fermi GBM).
+    ivorn = root.attrib.get('ivorn') or ''
+    path_part, _, fragment = ivorn.partition('#')
+    path_segments = [s for s in path_part.split('/') if s]
+    if path_segments:
+        set_if_missing('mission', path_segments[-1].capitalize())
+    if fragment:
+        set_if_missing('instrument', fragment.split('_')[0])
+
     # Remove keys with None values to avoid misleading downstream logic.
     return {k: v for k, v in data.items() if v is not None}
 
