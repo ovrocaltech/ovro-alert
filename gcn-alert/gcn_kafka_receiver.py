@@ -220,16 +220,17 @@ if __name__ == "__main__":
                 print('current time', current_time, 'event time', event_time)
 
                 if (
-                    rate_duration is not None 
+                    #rate_duration is not None 
                     #and event_time is not None
-                    and rate_duration < 2
+                    #and rate_duration < 2
                     #and (current_time - event_time) < timedelta(minutes=10)
                     and "ra" in alert
                     and "dec" in alert
                     and "radius" in alert
+                    and "trigger_time" in alert
                 ):
                     logger.info(f'Event at {alert["trigger_time"]}: RA, Dec = ({alert["ra"]}, {alert["dec"]}, radius={alert["radius"]}).')
-                    logger.info(f'Rate_duration: {rate_duration}. Rate_snr: {alert.get("rate_snr", "N/A")}.')
+#                    logger.info(f'Rate_duration: {rate_duration}. Rate_snr: {alert.get("rate_snr", "N/A")}.')
 
                     # duration is set to one hour
                     args = {
@@ -243,7 +244,7 @@ if __name__ == "__main__":
                     message = (
                         f"GCN alert: Instrument: {alert.get('instrument', 'Unknown')}. Mission: {alert.get('mission', 'Unknown')}.\n"
                         f"RA, Dec = ({alert['ra']}, {alert['dec']}, radius={alert['radius']}).\n"
-                        f"Rate_duration: {rate_duration}. Rate_snr: {alert.get('rate_snr', 'N/A')}."
+#                        f"Rate_duration: {rate_duration}. Rate_snr: {alert.get('rate_snr', 'N/A')}."
                     )
                     if send_to_slack:
                         post_to_slack(slack_channel, message, slack_client)
