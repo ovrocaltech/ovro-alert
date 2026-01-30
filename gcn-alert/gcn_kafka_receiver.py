@@ -170,7 +170,7 @@ def parse_event_time(event_time_str):
 def post_to_slack(channel, message, slack_client):
     """Post a message to a Slack channel."""
     try:
- #       response = slack_client.chat_postMessage(channel=channel, text=message)
+        response = slack_client.chat_postMessage(channel=channel, text=message)
         print(message)
     except SlackApiError as e:
         logger.error(f"Error sending to Slack: {e.response['error']}")
@@ -198,7 +198,7 @@ if __name__ == "__main__":
 
     consumer = Consumer(client_id=client_id,
                         client_secret=client_secret,
-                        config = {'auto.offset.reset': 'earliest'})
+                        config = {'auto.offset.reset': 'latest'})
     consumer.subscribe(['gcn.notices.einstein_probe.wxt.alert',
                         'gcn.classic.voevent.FERMI_GBM_GND_POS',
                         'gcn.classic.voevent.MAXI_KNOWN',
