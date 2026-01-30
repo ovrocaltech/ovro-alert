@@ -224,7 +224,7 @@ if __name__ == "__main__":
                     #and event_time is not None
                     #and rate_duration < 2
                     #and (current_time - event_time) < timedelta(minutes=10)
-                    and "ra" in alert
+                    "ra" in alert
                     and "dec" in alert
                     and "radius" in alert
                     and "trigger_time" in alert
