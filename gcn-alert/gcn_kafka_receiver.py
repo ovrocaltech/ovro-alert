@@ -125,9 +125,56 @@ def parse_voevent(payload_text):
     return {k: v for k, v in data.items() if v is not None}
 
 
+def handle_chime_frb(alert, mission, instrument):
+    """Handle CHIME/FRB alerts."""
+    ra_dec_error = alert.get("ra_dec_error")
+    if isinstance(ra_dec_error, list):
+        ra_dec_error = ra_dec_error[0]
+
+    args = {
+        'duration': 3600,
+        'position': f'{alert["ra"]},{alert["dec"]},{ra_dec_error}',
+        'instrument': instrument,
+        'mission': mission,
+    }
+
+    slack_msg = (
+        f"GCN alert: Instrument: {instrument}. Mission: {mission}.\n"
+        f"RA, Dec = ({alert['ra']}, {alert['dec']}, error={ra_dec_error}).\n"
+        f"SNR: {alert.get('snr', 'N/A')}."
+    )
+    return args, slack_msg
+
+
+def handle_einstein_probe(alert, mission, instrument):
+    """Handle Einstein Probe WXT alerts."""
+    ra_dec_error = alert.get("ra_dec_error", alert.get("radius"))
+    if isinstance(ra_dec_error, list):
+        ra_dec_error = ra_dec_error[0]
+
+    args = {
+        'duration': 3600,
+        'position': f'{alert["ra"]},{alert["dec"]},{ra_dec_error}',
+        'instrument': instrument,
+        'mission': mission,
+    }
+
+    slack_msg = (
+        f"GCN alert: Instrument: {instrument}. Mission: {mission}.\n"
+        f"RA, Dec = ({alert['ra']}, {alert['dec']}, error={ra_dec_error}).\n"
+    )
+    return args, slack_msg
+
+
 SCHEMA_REGISTRY = {
-    'gcn/notices/chime/frb': {'mission': 'CHIME', 'instrument': 'FRB'},
-    'gcn/notices/einstein_probe/wxt/alert': {'mission': 'Einstein Probe', 'instrument': 'WXT'},
+    'gcn/notices/chime/frb': {
+        'mission': 'CHIME', 'instrument': 'FRB',
+        'handler': handle_chime_frb,
+    },
+    'gcn/notices/einstein_probe/wxt/alert': {
+        'mission': 'Einstein Probe', 'instrument': 'WXT',
+        'handler': handle_einstein_probe,
+    },
 }
 
 
@@ -247,27 +294,10 @@ if __name__ == "__main__":
                 print('current time', current_time, 'event time', event_time)
 
                 if schema_meta and "ra" in alert and "dec" in alert:
-                    ra_dec_error = alert.get("ra_dec_error", alert.get("radius"))
-                    if isinstance(ra_dec_error, list):
-                        ra_dec_error = ra_dec_error[0]
-                    logger.info(
-                        f'Event at {event_time_str}: RA, Dec = ({alert["ra"]}, {alert["dec"]}, '
-                        f'error={ra_dec_error}). SNR={alert.get("snr", "N/A")}.'
-                    )
-
-                    args = {
-                        'duration': 3600,
-                        'position': f'{alert["ra"]},{alert["dec"]},{ra_dec_error}',
-                        'instrument': instrument,
-                        'mission': mission,
-                    }
-                    gc.set('gcn', args)
-
-                    slack_msg = (
-                        f"GCN alert: Instrument: {instrument}. Mission: {mission}.\n"
-                        f"RA, Dec = ({alert['ra']}, {alert['dec']}, error={ra_dec_error}).\n"
-                        f"SNR: {alert.get('snr', 'N/A')}."
-                    )
+                    handler = schema_meta['handler']
+                    args, slack_msg = handler(alert, mission, instrument)
+                    logger.info(f'Event at {event_time_str}: {slack_msg}')
+                    gc.set('observation', args, route=mission)
                     if send_to_slack:
                         post_to_slack(slack_channel, slack_msg, slack_client)
                 elif (
@@ -284,7 +314,7 @@ if __name__ == "__main__":
                         'instrument': instrument,
                         'mission': mission,
                     }
-                    gc.set('gcn', args)
+                    gc.set('observation', args, route=mission)
 
                     slack_msg = (
                         f"GCN alert: Instrument: {instrument}. Mission: {mission}.\n"
@@ -309,7 +339,7 @@ if __name__ == "__main__":
                         'instrument': instrument,
                         'mission': mission,
                     }
-                    gc.set('gcn', args)
+                    gc.set('observation', args, route=mission)
 
                     slack_msg = (
                         f"GCN alert: Instrument: {instrument}.\n"
