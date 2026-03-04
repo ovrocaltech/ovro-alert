@@ -146,22 +146,22 @@ def handle_chime_frb(alert, mission, instrument):
     return args, slack_msg
 
 
-def handle_einstein_probe(alert, mission, instrument):
-    """Handle Einstein Probe WXT alerts."""
-    ra_dec_error = alert.get("ra_dec_error", alert.get("radius"))
-    if isinstance(ra_dec_error, list):
-        ra_dec_error = ra_dec_error[0]
+def handle_default(alert, mission, instrument):
+    """Handle all non-CHIME alerts (Einstein Probe, Fermi, Swift, MAXI, etc.)."""
+    error = alert.get("ra_dec_error", alert.get("radius"))
+    if isinstance(error, list):
+        error = error[0]
 
     args = {
         'duration': 3600,
-        'position': f'{alert["ra"]},{alert["dec"]},{ra_dec_error}',
+        'position': f'{alert["ra"]},{alert["dec"]},{error}',
         'instrument': instrument,
         'mission': mission,
     }
 
     slack_msg = (
         f"GCN alert: Instrument: {instrument}. Mission: {mission}.\n"
-        f"RA, Dec = ({alert['ra']}, {alert['dec']}, error={ra_dec_error}).\n"
+        f"RA, Dec = ({alert['ra']}, {alert['dec']}, error={error}).\n"
     )
     return args, slack_msg
 
@@ -169,11 +169,9 @@ def handle_einstein_probe(alert, mission, instrument):
 SCHEMA_REGISTRY = {
     'gcn/notices/chime/frb': {
         'mission': 'CHIME', 'instrument': 'FRB',
-        'handler': handle_chime_frb,
     },
     'gcn/notices/einstein_probe/wxt/alert': {
         'mission': 'Einstein Probe', 'instrument': 'WXT',
-        'handler': handle_einstein_probe,
     },
 }
 
@@ -293,63 +291,20 @@ if __name__ == "__main__":
                 current_time = datetime.utcnow()
                 print('current time', current_time, 'event time', event_time)
 
-                if schema_meta and "ra" in alert and "dec" in alert:
-                    handler = schema_meta['handler']
-                    args, slack_msg = handler(alert, mission, instrument)
+                if "ra" not in alert or "dec" not in alert:
+                    logger.info(f"Alert has no coordinates; format={alert_format}; keys={list(alert.keys())}")
+                elif mission == 'CHIME':
+                    args, slack_msg = handle_chime_frb(alert, mission, instrument)
                     logger.info(f'Event at {event_time_str}: {slack_msg}')
-                    gc.set('observation', args, route=mission)
-                    if send_to_slack:
-                        post_to_slack(slack_channel, slack_msg, slack_client)
-                elif (
-                    "ra" in alert
-                    and "dec" in alert
-                    and "radius" in alert
-                    and "trigger_time" in alert
-                ):
-                    logger.info(f'Event at {alert["trigger_time"]}: RA, Dec = ({alert["ra"]}, {alert["dec"]}, radius={alert["radius"]}).')
-
-                    args = {
-                        'duration': 3600,
-                        'position': f'{alert["ra"]},{alert["dec"]},{alert["radius"]}',
-                        'instrument': instrument,
-                        'mission': mission,
-                    }
-                    gc.set('observation', args, route=mission)
-
-                    slack_msg = (
-                        f"GCN alert: Instrument: {instrument}. Mission: {mission}.\n"
-                        f"RA, Dec = ({alert['ra']}, {alert['dec']}, radius={alert['radius']}).\n"
-                    )
-                    if send_to_slack:
-                        post_to_slack(slack_channel, slack_msg, slack_client)
-                elif (
-                    "ra" in alert
-                    and "dec" in alert
-                    and "ra_dec_error" in alert
-                    and "net_count_rate" in alert
-                    and "image_snr" in alert
-                    and alert["image_snr"] > 3
-                ):
-                    logger.info(f'Event at {alert["trigger_time"]}: RA, Dec = ({alert["ra"]}, {alert["dec"]}, ra_dec_error={alert["ra_dec_error"]}).')
-                    logger.info(f'Net count rate: {alert["net_count_rate"]}. Image SNR: {alert["image_snr"]}.')
-
-                    args = {
-                        'duration': 3600,
-                        'position': f'{alert["ra"]},{alert["dec"]},{alert["ra_dec_error"]}',
-                        'instrument': instrument,
-                        'mission': mission,
-                    }
-                    gc.set('observation', args, route=mission)
-
-                    slack_msg = (
-                        f"GCN alert: Instrument: {instrument}.\n"
-                        f"RA, Dec = ({alert['ra']}, {alert['dec']}, ra_dec_error={alert['ra_dec_error']}).\n"
-                        f"Net count rate: {alert['net_count_rate']}. Image SNR: {alert['image_snr']}."
-                    )
+                    gc.set('observation', args, route=mission.lower())
                     if send_to_slack:
                         post_to_slack(slack_channel, slack_msg, slack_client)
                 else:
-                    logger.info(f"Alert did not match known criteria; format={alert_format}; keys={list(alert.keys())}")
+                    args, slack_msg = handle_default(alert, mission, instrument)
+                    logger.info(f'Event at {event_time_str}: {slack_msg}')
+                    gc.set('observation', args, route=mission.lower().replace(' ', '_'))
+                    if send_to_slack:
+                        post_to_slack(slack_channel, slack_msg, slack_client)
 
             except Exception as e:
                 logger.error(f'Error processing message: {e}')
