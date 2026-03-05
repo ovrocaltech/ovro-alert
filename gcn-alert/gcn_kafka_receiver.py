@@ -134,6 +134,7 @@ def handle_chime_frb(alert, mission, instrument):
     args = {
         'position': f'{alert["ra"]},{alert["dec"]},{ra_dec_error}',
         'dm': alert['dm'],
+        'id': alert['id'],
         'instrument': instrument,
         'mission': mission,
     }
