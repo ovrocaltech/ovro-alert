@@ -132,8 +132,8 @@ def handle_chime_frb(alert, mission, instrument):
         ra_dec_error = ra_dec_error[0]
 
     args = {
-        'duration': 3600,
         'position': f'{alert["ra"]},{alert["dec"]},{ra_dec_error}',
+        'dm': alert['dm'],
         'instrument': instrument,
         'mission': mission,
     }
@@ -141,7 +141,8 @@ def handle_chime_frb(alert, mission, instrument):
     slack_msg = (
         f"GCN alert: Instrument: {instrument}. Mission: {mission}.\n"
         f"RA, Dec = ({alert['ra']}, {alert['dec']}, error={ra_dec_error}).\n"
-        f"SNR: {alert.get('snr', 'N/A')}."
+        f"SNR: {alert.get('snr', 'N/A')}.\n"
+        f"DM: {alert.get('dm', 'N/A')}."
     )
     return args, slack_msg
 
