@@ -87,6 +87,7 @@ cd /home/pipeline/proj/lwa-fasttransients/frb_search_pipeline
 cp "${filename}" "/fast/pipeline/fast/${filename_base}"
 
 python run_pipeline.py \
-    --voltage "/fast/pipeline/fast/${filename_base}" \
+    --voltage "${filename_base}" \
     --dm "${dm}" \
-    --duration "${time}"
+    --duration "${time}" \
+    --workdir "/fast/pipeline/fast"
