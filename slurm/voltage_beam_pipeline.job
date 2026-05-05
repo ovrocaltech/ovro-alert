@@ -1,0 +1,92 @@
+#!/bin/bash
+#SBATCH --job-name=voltage_beam_pipeline
+#SBATCH --cpus-per-task=1
+#SBATCH --output=/home/pipeline/slurm/voltage_beam_pipeline-%j.out
+#SBATCH --error=/home/pipeline/slurm/voltage_beam_pipeline-%j.err
+## SBATCH --mem=NG
+## SBATCH --partition=YOUR_PARTITION
+
+# Fill at runtime via environment (recommended):
+#   dm, time — required (see Python submit_voltagebeam → sbatch --export).
+#   filename — optional. If unset, pick the newest regular file under VOLTAGE_BEAM_SEARCH_DIR:
+#     • If VOLTAGE_BEAM_WINDOW_END_EPOCH is unset: mtime within the last VOLTAGE_BEAM_LOOKBACK_MIN
+#       minutes of job start (find -mmin). Defaults: /lustre/ubuntu/beam01, lookback 120.
+#     • If VOLTAGE_BEAM_WINDOW_END_EPOCH is set (integer Unix seconds): mtime must lie in
+#       [end − lookback, end] inclusive, where end is that epoch.
+# Example:
+#   sbatch --begin=now+2hours --export=ALL,dm=87.3,time=300 slurm/voltage_beam_pipeline.job
+
+set -euo pipefail
+
+VOLTAGE_BEAM_SEARCH_DIR="${VOLTAGE_BEAM_SEARCH_DIR:-/lustre/ubuntu/beam01}"
+VOLTAGE_BEAM_LOOKBACK_MIN="${VOLTAGE_BEAM_LOOKBACK_MIN:-120}"
+
+if [[ -z "${filename:-}" ]]; then
+  filename=""
+  if [[ -n "${VOLTAGE_BEAM_WINDOW_END_EPOCH:-}" ]]; then
+    if ! [[ "${VOLTAGE_BEAM_WINDOW_END_EPOCH}" =~ ^[0-9]+$ ]]; then
+      echo "VOLTAGE_BEAM_WINDOW_END_EPOCH must be non-negative integer Unix seconds" >&2
+      exit 1
+    fi
+    end_sec="${VOLTAGE_BEAM_WINDOW_END_EPOCH}"
+    start_sec=$((end_sec - VOLTAGE_BEAM_LOOKBACK_MIN * 60))
+    end_iso="$(date -u -d "@${end_sec}" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || echo "?")"
+    start_iso="$(date -u -d "@${start_sec}" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || echo "?")"
+    echo "Voltage file search: assumed window end unix=${end_sec} (${end_iso}), start unix=${start_sec} (${start_iso}), lookback ${VOLTAGE_BEAM_LOOKBACK_MIN} min"
+    while IFS=$'\t' read -r _ts path; do
+      filename="$path"
+      break
+    done < <(find "${VOLTAGE_BEAM_SEARCH_DIR}" -maxdepth 1 -type f -printf '%T@\t%p\n' 2>/dev/null \
+      | awk -v s="${start_sec}" -v e="${end_sec}" -F '\t' '$1>=s && $1<=e {print}' \
+      | sort -t $'\t' -k1,1nr | head -1)
+    if [[ -z "${filename}" ]]; then
+      echo "No voltage file under ${VOLTAGE_BEAM_SEARCH_DIR} with mtime in [${start_sec} (${start_iso}), ${end_sec} (${end_iso})] (${VOLTAGE_BEAM_LOOKBACK_MIN} min lookback ending at epoch ${end_sec})" >&2
+      exit 1
+    fi
+    pick_mtime="$(stat -c %Y "${filename}" 2>/dev/null || echo "?")"
+    pick_iso="$(date -u -d "@${pick_mtime}" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || echo "?")"
+    echo "Resolved voltage file (auto, window end epoch ${end_sec}): ${filename} (mtime unix=${pick_mtime}, ${pick_iso})"
+  else
+    now_sec="$(date +%s)"
+    now_iso="$(date -u -d "@${now_sec}" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || echo "?")"
+    window_start_sec=$((now_sec - VOLTAGE_BEAM_LOOKBACK_MIN * 60))
+    window_start_iso="$(date -u -d "@${window_start_sec}" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || echo "?")"
+    echo "Voltage file search: assumed reference time (job start) unix=${now_sec} (${now_iso}), mtime window approx [${window_start_sec} (${window_start_iso}), ${now_sec} (${now_iso})] via find -mmin -${VOLTAGE_BEAM_LOOKBACK_MIN}"
+    while IFS=$'\t' read -r _ts path; do
+      filename="$path"
+      break
+    done < <(find "${VOLTAGE_BEAM_SEARCH_DIR}" -maxdepth 1 -type f \
+      -mmin "-${VOLTAGE_BEAM_LOOKBACK_MIN}" -printf '%T@\t%p\n' 2>/dev/null | sort -t $'\t' -k1,1nr | head -1)
+    if [[ -z "${filename}" ]]; then
+      echo "No voltage file found under ${VOLTAGE_BEAM_SEARCH_DIR} modified within the last ${VOLTAGE_BEAM_LOOKBACK_MIN} minutes (reference unix=${now_sec}, ${now_iso})" >&2
+      exit 1
+    fi
+    pick_mtime="$(stat -c %Y "${filename}" 2>/dev/null || echo "?")"
+    pick_iso="$(date -u -d "@${pick_mtime}" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || echo "?")"
+    echo "Resolved voltage file (auto): ${filename} (mtime unix=${pick_mtime}, ${pick_iso})"
+  fi
+fi
+
+: "${dm:?Set dm}"
+: "${time:?Set time (duration)}"
+
+filename_base="$(basename -- "$filename")"
+
+# Conda — uncomment and set if conda is not initialized for non-interactive shells:
+# source /path/to/miniconda3/etc/profile.d/conda.sh
+eval "$(conda shell.bash hook)"
+conda activate fasttransients
+
+export TEMPO=/opt/devel/pipeline/nkosogor/tempo
+export PRESTO=/opt/devel/pipeline/nkosogor/presto
+export LIBRARY_PATH=/opt/devel/pipeline/envs/fasttransients/lib64:${LIBRARY_PATH:-}
+export LD_LIBRARY_PATH=/opt/devel/pipeline/envs/fasttransients/lib64:${LD_LIBRARY_PATH:-}
+export PYTHONPATH=/opt/devel/nkosogor/nkosogor:${PYTHONPATH:-}
+
+cd /home/pipeline/proj/lwa-fasttransients/frb_search_pipeline
+cp "${filename}" "/fast/pipeline/fast/${filename_base}"
+
+python run_pipeline.py \
+    --voltage "/fast/pipeline/fast/${filename_base}" \
+    --dm "${dm}" \
+    --duration "${time}"

@@ -1,5 +1,7 @@
 import sys
 import logging
+import subprocess
+from pathlib import Path
 from time import sleep
 import threading
 from slack_sdk import WebClient
@@ -30,6 +32,10 @@ else:
 delay = lambda dm, f1, f2: 4.149 * 1e3 * dm * (f2 ** (-2) - f1 ** (-2))
 
 RECORDER = 'drt1'
+
+# Slurm: run voltage_beam_pipeline.job two hours after submit_voltagebeam; the job script
+# resolves the raw voltage path under /lustre/ubuntu/beam01 (see slurm/voltage_beam_pipeline.job).
+VOLTAGE_PIPELINE_BEGIN_DELAY = "now+2hours"
 
 class LWAAlertClient(AlertClient):
     def __init__(self, con):
@@ -165,6 +171,65 @@ class LWAAlertClient(AlertClient):
         # TODO: test required parameters for voltage beam from SDF
 
         ls.put_dict('/cmd/observing/submitsdf', {'filename': sdffile, 'mode': 'asap'})
+        self._schedule_voltage_beam_pipeline(dd, d0)
+
+    def _schedule_voltage_beam_pipeline(self, dd, duration_sec):
+        """Queue Slurm FRB pipeline; voltage path is chosen inside the job from /lustre/ubuntu/beam01."""
+
+        if 'dm' not in dd:
+            logger.warning(
+                "Skipping voltage beam pipeline Slurm job: dm missing from alert args "
+                "(required for run_pipeline.py export)."
+            )
+            return
+
+        job_path = environ.get("OVRO_ALERT_VOLTAGE_BEAM_JOB")
+        if job_path:
+            job_path = Path(job_path)
+        else:
+            job_path = Path(__file__).resolve().parent.parent / "slurm" / "voltage_beam_pipeline.job"
+        if not job_path.is_file():
+            logger.warning("Skipping voltage beam pipeline Slurm job: script not found at %s", job_path)
+            return
+
+        dm_s = str(float(dd["dm"]))
+        time_s = str(float(duration_sec))
+        export = f"ALL,dm={dm_s},time={time_s}"
+        if "VOLTAGE_BEAM_SEARCH_DIR" in environ:
+            export += f",VOLTAGE_BEAM_SEARCH_DIR={environ['VOLTAGE_BEAM_SEARCH_DIR']}"
+        if "VOLTAGE_BEAM_LOOKBACK_MIN" in environ:
+            export += f",VOLTAGE_BEAM_LOOKBACK_MIN={environ['VOLTAGE_BEAM_LOOKBACK_MIN']}"
+        if "VOLTAGE_BEAM_WINDOW_END_EPOCH" in environ:
+            export += f",VOLTAGE_BEAM_WINDOW_END_EPOCH={environ['VOLTAGE_BEAM_WINDOW_END_EPOCH']}"
+
+        try:
+            proc = subprocess.run(
+                ["sbatch", f"--begin={VOLTAGE_PIPELINE_BEGIN_DELAY}", f"--export={export}", str(job_path)],
+                capture_output=True,
+                text=True,
+                timeout=60,
+                check=False,
+            )
+        except subprocess.TimeoutExpired:
+            logger.error("sbatch timed out scheduling voltage beam pipeline")
+            return
+        except OSError as e:
+            logger.error("sbatch failed to run: %s", e)
+            return
+
+        out = (proc.stdout or "").strip()
+        err = (proc.stderr or "").strip()
+        if proc.returncode != 0:
+            logger.warning(
+                "sbatch failed (exit %s): stdout=%r stderr=%r",
+                proc.returncode,
+                out,
+                err,
+            )
+            return
+        logger.info("Scheduled voltage beam pipeline: %s", out or "(no stdout)")
+        if err:
+            logger.debug("sbatch stderr: %s", err)
 
     def submit_powerbeam(self, dd):
         """ Submit an ASAP voltage beam observation
