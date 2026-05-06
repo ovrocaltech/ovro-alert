@@ -205,8 +205,9 @@ class LWAAlertClient(AlertClient):
         try:
             proc = subprocess.run(
                 ["sbatch", f"--begin={VOLTAGE_PIPELINE_BEGIN_DELAY}", f"--export={export}", str(job_path)],
-                capture_output=True,
-                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True,
                 timeout=60,
                 check=False,
             )
