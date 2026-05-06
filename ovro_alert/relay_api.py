@@ -40,6 +40,7 @@ dd = {"dsa": {"command": None, "command_mjd": None},
       "lwa": {"command": None, "command_mjd": None},
       "ligo": {"command": None, "command_mjd": None},
       "chime": {"command": None, "command_mjd": None},
+      "casm": {"command": None, "command_mjd": None},
       "gcn": {"command": None, "command_mjd": None}}
 
 
@@ -167,6 +168,37 @@ def set_chime(command: relay_db.Command, key: str):
                 res = cl.chat_postMessage(channel='#alert-driven-astro', text=message)
 
         return f"Set CHIME event: {command.command} with {command.args}"
+    else:
+        return "Bad key"
+
+
+@app.get("/casm")
+def get_casm(key):
+    if key == RELAY_KEY:
+        dd2 = {"read_mjd": time.Time.now().mjd}
+        dd2.update(dd["casm"])
+        return dd2
+    else:
+        return "Bad key"
+
+
+@app.put("/casm")
+def set_casm(command: relay_db.Command, key: str):
+    if key == RELAY_KEY:
+        dd['casm'] = {"command": command.command, "command_mjd": command.command_mjd,
+                      "args": command.args}
+
+        if command.command == 'observation':
+            relay_db.set_command(command)
+
+            if cl is not None:
+                if "event_no" in command.args:
+                    message = f'CASM event {command.args["event_no"]} received'
+                else:
+                    message = f'CASM event received: {command.args}'
+                res = cl.chat_postMessage(channel='#alert-driven-astro', text=message)
+
+        return f"Set CASM event: {command.command} with {command.args}"
     else:
         return "Bad key"
 

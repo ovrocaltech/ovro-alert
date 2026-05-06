@@ -49,20 +49,28 @@ class LWAAlertClient(AlertClient):
         """
 
         ddc0 = self.get(route='chime')
+        ddcasm0 = self.get(route='casm')
         ddl0 = self.get(route='ligo')
         ddg0 = self.get(route='gcn')
         ddd0 = self.get(route='dsa')
         while True:
             mjd = Time.now().mjd
             ddc = self.get(route='chime')
+            ddcasm = self.get(route='casm')
             ddl = self.get(route='ligo')
             ddg = self.get(route='gcn')
             ddd = self.get(route='dsa')
             print(".", end="")
 
             # TODO: validate ddc and ddl have correct fields (and maybe reject malicious content?)
-            if ("command_mjd" not in ddc) or ("command_mjd" not in ddl) or ("command_mjd" not in ddg) or ("command_mjd" not in ddd):
-                print(f"Could not get complete dict from relay: {ddc}, {ddl}, {ddg}, {ddd}.")
+            if (
+                ("command_mjd" not in ddc)
+                or ("command_mjd" not in ddcasm)
+                or ("command_mjd" not in ddl)
+                or ("command_mjd" not in ddg)
+                or ("command_mjd" not in ddd)
+            ):
+                print(f"Could not get complete dict from relay: {ddc}, {ddcasm}, {ddl}, {ddg}, {ddd}.")
                 sleep(loop)
                 continue
 
@@ -83,6 +91,29 @@ class LWAAlertClient(AlertClient):
                     self.submit_voltagebeam(ddc["args"])
                 elif ddc["command"] == "test":
                     logger.info("Received CHIME test")
+
+            elif ddcasm["command_mjd"] != ddcasm0["command_mjd"]:
+                ddcasm0 = ddcasm.copy()
+
+                if ddcasm["command"] == "observation":
+                    logger.info("Received CASM event")
+                    if not all(key in ddcasm["args"] for key in ["dm", "position"]):
+                        logger.warning(
+                            f"CASM args ({ddcasm['args']}) do not include 'dm' and 'position'. Skipping..."
+                        )
+                        continue
+                    if cl is not None:
+                        response = cl.chat_postMessage(
+                            channel="#observing",
+                            text=(
+                                f"Starting drt1 beam on CASM event {ddcasm['args'].get('id', 'unknown')}"
+                                f" with DM={ddcasm['args']['dm']}"
+                            ),
+                            icon_emoji=":robot_face::",
+                        )
+                    self.submit_voltagebeam(ddcasm["args"])
+                elif ddcasm["command"] == "test":
+                    logger.info("Received CASM test")
 
             elif ddg["command_mjd"] != ddg0["command_mjd"]:
                 ddg0 = ddg.copy()
