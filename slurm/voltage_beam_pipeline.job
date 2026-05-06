@@ -83,11 +83,38 @@ export LIBRARY_PATH=/opt/devel/pipeline/envs/fasttransients/lib64:${LIBRARY_PATH
 export LD_LIBRARY_PATH=/opt/devel/pipeline/envs/fasttransients/lib64:${LD_LIBRARY_PATH:-}
 export PYTHONPATH=/opt/devel/nkosogor/nkosogor:${PYTHONPATH:-}
 
-cd /home/pipeline/proj/lwa-fasttransients/frb_search_pipeline
-cp "${filename}" "/fast/pipeline/fast/${filename_base}"
+# Make caches writable under Slurm (fixes lsl config/data cache warnings).
+# Hypothesis A: lsl fails because $HOME/.cache or related dirs are not writable.
+cache_root="${SLURM_TMPDIR:-/tmp}/ovro_alert_${SLURM_JOB_ID:-nojob}"
+mkdir -p "${cache_root}/home" "${cache_root}/xdg-cache" "${cache_root}/xdg-config" "${cache_root}/mpl"
+export HOME="${cache_root}/home"
+export XDG_CACHE_HOME="${cache_root}/xdg-cache"
+export XDG_CONFIG_HOME="${cache_root}/xdg-config"
+export MPLCONFIGDIR="${cache_root}/mpl"
 
-python run_pipeline.py \
+# lsl hardcodes caches under ~/.lsl; ensure it exists and is writable.
+mkdir -p "${HOME}/.lsl"
+chmod 700 "${HOME}/.lsl" || true
+
+# Pipeline code lives here; outputs go to per-job workdir under /fast.
+pipeline_dir="/home/pipeline/proj/lwa-fasttransients/frb_search_pipeline"
+run_pipeline_py="${pipeline_dir}/run_pipeline.py"
+
+# Use a per-job workdir under /fast to avoid output collisions (FITS/HDF5 names can be fixed).
+workdir="/fast/pipeline/fast/voltage_beam_${SLURM_JOB_ID:-nojob}"
+mkdir -p "${workdir}"
+
+dst="${workdir}/${filename_base}"
+if [[ -f "${dst}" ]]; then
+  echo "Reusing existing voltage file in workdir: ${dst}"
+else
+  cp "${filename}" "${dst}"
+fi
+
+cd "${workdir}"
+
+python "${run_pipeline_py}" \
     --voltage "${filename_base}" \
     --dm "${dm}" \
     --duration "${time}" \
-    --workdir "/fast/pipeline/fast"
+    --workdir "${workdir}"
