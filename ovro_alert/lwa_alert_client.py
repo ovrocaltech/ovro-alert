@@ -199,6 +199,8 @@ class LWAAlertClient(AlertClient):
             export += f",VOLTAGE_BEAM_SEARCH_DIR={environ['VOLTAGE_BEAM_SEARCH_DIR']}"
         if "VOLTAGE_BEAM_LOOKBACK_MIN" in environ:
             export += f",VOLTAGE_BEAM_LOOKBACK_MIN={environ['VOLTAGE_BEAM_LOOKBACK_MIN']}"
+        else:
+            export += f",VOLTAGE_BEAM_LOOKBACK_MIN={int(duration_sec / 60) + 1}"
         if "VOLTAGE_BEAM_WINDOW_END_EPOCH" in environ:
             export += f",VOLTAGE_BEAM_WINDOW_END_EPOCH={environ['VOLTAGE_BEAM_WINDOW_END_EPOCH']}"
 
