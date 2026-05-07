@@ -96,11 +96,11 @@ export MPLCONFIGDIR="${cache_root}/mpl"
 mkdir -p "${HOME}/.lsl"
 chmod 700 "${HOME}/.lsl" || true
 
-# Pipeline code lives here; outputs go to per-job workdir under /fast.
+# Pipeline code lives here; processing runs under /fast (node-local).
 pipeline_dir="/home/pipeline/proj/lwa-fasttransients/frb_search_pipeline"
 run_pipeline_py="${pipeline_dir}/run_pipeline.py"
 
-# Use a per-job workdir under /fast to avoid output collisions (FITS/HDF5 names can be fixed).
+# Use a per-job workdir under /fast to keep processing local.
 workdir="/fast/pipeline/fast/voltage_beam_${SLURM_JOB_ID:-nojob}"
 mkdir -p "${workdir}"
 
@@ -118,3 +118,15 @@ python "${run_pipeline_py}" \
     --dm "${dm}" \
     --duration "${time}" \
     --workdir "${workdir}"
+
+# Finalize: move products to shared Lustre so results are visible from any node.
+product_root="${VOLTAGE_BEAM_PRODUCT_ROOT:-/lustre/pipeline/teng}"
+product_dir="${product_root}/voltage_beam_${SLURM_JOB_ID:-nojob}"
+if [[ -e "${product_dir}" ]]; then
+  echo "Refusing to move products: destination already exists: ${product_dir}" >&2
+  exit 1
+fi
+mkdir -p "${product_root}"
+cd /
+mv "${workdir}" "${product_dir}"
+echo "Moved products to ${product_dir}"
