@@ -36,6 +36,7 @@ RECORDER = 'drt1'
 # Slurm: run voltage_beam_pipeline.job two hours after submit_voltagebeam; the job script
 # resolves the raw voltage path under /lustre/ubuntu/beam01 (see slurm/voltage_beam_pipeline.job).
 VOLTAGE_PIPELINE_BEGIN_DELAY = "now+2hours"
+VOLTAGE_PIPELINE_NODELIST = environ.get("OVRO_ALERT_VOLTAGE_PIPELINE_NODELIST", "lwacalim10")
 
 class LWAAlertClient(AlertClient):
     def __init__(self, con):
@@ -237,7 +238,13 @@ class LWAAlertClient(AlertClient):
 
         try:
             proc = subprocess.run(
-                ["sbatch", f"--begin={VOLTAGE_PIPELINE_BEGIN_DELAY}", f"--export={export}", str(job_path)],
+                [
+                    "sbatch",
+                    f"--begin={VOLTAGE_PIPELINE_BEGIN_DELAY}",
+                    f"--nodelist={VOLTAGE_PIPELINE_NODELIST}",
+                    f"--export={export}",
+                    str(job_path),
+                ],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 universal_newlines=True,

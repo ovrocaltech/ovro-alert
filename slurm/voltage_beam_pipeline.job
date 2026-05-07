@@ -1,6 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=voltage_beam_pipeline
 #SBATCH --cpus-per-task=1
+#SBATCH --nodelist=lwacalim10,lwacalim02
 #SBATCH --output=/home/pipeline/slurm/voltage_beam_pipeline-%j.out
 #SBATCH --error=/home/pipeline/slurm/voltage_beam_pipeline-%j.err
 ## SBATCH --mem=NG

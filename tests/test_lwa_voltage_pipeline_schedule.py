@@ -23,6 +23,7 @@ def _client_and_fake_job(tmp_path):
 def test_schedule_voltage_beam_pipeline_export_dm_time(tmp_path, monkeypatch):
     client, fake_job, lac = _client_and_fake_job(tmp_path)
     monkeypatch.setenv("OVRO_ALERT_VOLTAGE_BEAM_JOB", str(fake_job))
+    monkeypatch.setenv("OVRO_ALERT_VOLTAGE_PIPELINE_NODELIST", "lwacalim10")
 
     mock_run = MagicMock(
         return_value=CompletedProcess(
@@ -39,9 +40,10 @@ def test_schedule_voltage_beam_pipeline_export_dm_time(tmp_path, monkeypatch):
     argv = mock_run.call_args[0][0]
     assert argv[0] == "sbatch"
     assert argv[1].startswith("--begin=")
-    assert "dm=87.5" in argv[2]
-    assert "time=300.0" in argv[2]
-    assert argv[3] == str(fake_job)
+    assert argv[2] == "--nodelist=lwacalim10"
+    assert "dm=87.5" in argv[3]
+    assert "time=300.0" in argv[3]
+    assert argv[4] == str(fake_job)
 
 
 def test_schedule_skips_without_dm(tmp_path, monkeypatch, caplog):
