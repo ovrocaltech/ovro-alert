@@ -119,6 +119,10 @@ python "${run_pipeline_py}" \
     --duration "${time}" \
     --workdir "${workdir}"
 
+# Drop the staged raw voltage file to reduce product size.
+# (This removes only the copy in the per-job workdir, not the original under /lustre/ubuntu/beam01.)
+rm -f "${dst}"
+
 # Finalize: move products to shared Lustre so results are visible from any node.
 product_root="${VOLTAGE_BEAM_PRODUCT_ROOT:-/lustre/pipeline/teng}"
 product_dir="${product_root}/voltage_beam_${SLURM_JOB_ID:-nojob}"
