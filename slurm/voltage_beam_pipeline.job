@@ -135,3 +135,12 @@ mkdir -p "${product_root}"
 cd /
 mv "${workdir}" "${product_dir}"
 echo "Moved products to ${product_dir}"
+
+# Optional: expose this job's products under a stable path (e.g. for web or dashboards).
+# Set VOLTAGE_BEAM_EVENT_PNGS_DIR to empty to skip symlinking (unset uses default below).
+event_pngs_root="${VOLTAGE_BEAM_EVENT_PNGS_DIR-/opt/devel/pipeline/event_pngs}"
+if [[ -n "${event_pngs_root}" ]]; then
+  mkdir -p "${event_pngs_root}"
+  ln -sfn "${product_dir}" "${event_pngs_root}/voltage_beam_${SLURM_JOB_ID:-nojob}"
+  echo "Symlinked ${product_dir} -> ${event_pngs_root}/voltage_beam_${SLURM_JOB_ID:-nojob}"
+fi
