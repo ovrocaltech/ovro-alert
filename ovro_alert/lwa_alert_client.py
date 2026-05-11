@@ -1,6 +1,7 @@
 import sys
 import logging
 import subprocess
+import time
 from pathlib import Path
 from time import sleep
 import threading
@@ -35,6 +36,8 @@ RECORDER = 'drt1'
 
 # Slurm: run voltage_beam_pipeline.job two hours after submit_voltagebeam; the job script
 # resolves the raw voltage path under /lustre/ubuntu/beam01 (see slurm/voltage_beam_pipeline.job).
+# File discovery uses VOLTAGE_BEAM_WINDOW_END_EPOCH + lookback (see _schedule_voltage_beam_pipeline):
+# a plain mtime window relative to job start would miss files written at alert time.
 VOLTAGE_PIPELINE_BEGIN_DELAY = "now+2hours"
 VOLTAGE_PIPELINE_NODELIST = environ.get("OVRO_ALERT_VOLTAGE_PIPELINE_NODELIST", "lwacalim10")
 
@@ -229,12 +232,21 @@ class LWAAlertClient(AlertClient):
         export = f"ALL,dm={dm_s},time={time_s}"
         if "VOLTAGE_BEAM_SEARCH_DIR" in environ:
             export += f",VOLTAGE_BEAM_SEARCH_DIR={environ['VOLTAGE_BEAM_SEARCH_DIR']}"
+        if "VOLTAGE_BEAM_WINDOW_END_EPOCH" in environ:
+            export += f",VOLTAGE_BEAM_WINDOW_END_EPOCH={environ['VOLTAGE_BEAM_WINDOW_END_EPOCH']}"
+        else:
+            # Anchor search to when the recording should finish (wall time at sbatch), not job start
+            # (~2h later). Otherwise find -mmin at job start never sees mtimes from alert time.
+            slack_s = 180
+            window_end = int(time.time()) + int(duration_sec) + slack_s
+            export += f",VOLTAGE_BEAM_WINDOW_END_EPOCH={window_end}"
         if "VOLTAGE_BEAM_LOOKBACK_MIN" in environ:
             export += f",VOLTAGE_BEAM_LOOKBACK_MIN={environ['VOLTAGE_BEAM_LOOKBACK_MIN']}"
         else:
-            export += f",VOLTAGE_BEAM_LOOKBACK_MIN={int(duration_sec / 60) + 1}"
-        if "VOLTAGE_BEAM_WINDOW_END_EPOCH" in environ:
-            export += f",VOLTAGE_BEAM_WINDOW_END_EPOCH={environ['VOLTAGE_BEAM_WINDOW_END_EPOCH']}"
+            # Include ~observation start through WINDOW_END_EPOCH (mtime in [end - L*60, end]).
+            margin_s = 300
+            lookback_min = int((duration_sec + margin_s) / 60) + 1
+            export += f",VOLTAGE_BEAM_LOOKBACK_MIN={lookback_min}"
 
         try:
             proc = subprocess.run(

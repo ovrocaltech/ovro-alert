@@ -15,6 +15,7 @@
 #   filename — optional. If unset, pick the newest regular file under VOLTAGE_BEAM_SEARCH_DIR:
 #     • If VOLTAGE_BEAM_WINDOW_END_EPOCH is unset: mtime within the last VOLTAGE_BEAM_LOOKBACK_MIN
 #       minutes of job start (find -mmin). Defaults: /lustre/ubuntu/beam01, lookback 120.
+#       (Alert-driven sbatch sets WINDOW_END_EPOCH so delayed jobs still find the file.)
 #     • If VOLTAGE_BEAM_WINDOW_END_EPOCH is set (integer Unix seconds): mtime must lie in
 #       [end − lookback, end] inclusive, where end is that epoch.
 # Example:
@@ -73,6 +74,7 @@ fi
 
 : "${dm:?Set dm}"
 : "${time:?Set time (duration)}"
+echo "Pipeline parameters: dm=${dm} time=${time} (duration)"
 
 filename_base="$(basename -- "$filename")"
 

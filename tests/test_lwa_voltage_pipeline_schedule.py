@@ -33,7 +33,8 @@ def test_schedule_voltage_beam_pipeline_export_dm_time(tmp_path, monkeypatch):
             stderr="",
         )
     )
-    with patch.object(lac.subprocess, "run", mock_run):
+    fixed_t = 1_700_000_000
+    with patch.object(lac.subprocess, "run", mock_run), patch.object(lac.time, "time", return_value=fixed_t):
         client._schedule_voltage_beam_pipeline({"dm": 87.5, "position": "10,20"}, 300.0)
 
     mock_run.assert_called_once()
@@ -41,8 +42,14 @@ def test_schedule_voltage_beam_pipeline_export_dm_time(tmp_path, monkeypatch):
     assert argv[0] == "sbatch"
     assert argv[1].startswith("--begin=")
     assert argv[2] == "--nodelist=lwacalim10"
-    assert "dm=87.5" in argv[3]
-    assert "time=300.0" in argv[3]
+    export = argv[3]
+    assert export.startswith("--export=")
+    body = export.removeprefix("--export=")
+    assert "dm=87.5" in body
+    assert "time=300.0" in body
+    # Window anchored at schedule time + duration + slack, not Slurm job start (~2h later).
+    assert f"VOLTAGE_BEAM_WINDOW_END_EPOCH={fixed_t + 300 + 180}" in body
+    assert "VOLTAGE_BEAM_LOOKBACK_MIN=11" in body  # int((300 + 300) / 60) + 1
     assert argv[4] == str(fake_job)
 
 
