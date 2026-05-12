@@ -26,6 +26,9 @@ set -euo pipefail
 VOLTAGE_BEAM_SEARCH_DIR="${VOLTAGE_BEAM_SEARCH_DIR:-/lustre/ubuntu/beam01}"
 VOLTAGE_BEAM_LOOKBACK_MIN="${VOLTAGE_BEAM_LOOKBACK_MIN:-120}"
 
+# Log before file pick: on "no file" we exit 1 below and would otherwise never reach dm/time echo.
+echo "Pipeline env: dm=${dm:-<unset>} time=${time:-<unset>} filename=${filename:-<auto>} VOLTAGE_BEAM_WINDOW_END_EPOCH=${VOLTAGE_BEAM_WINDOW_END_EPOCH:-<unset>} VOLTAGE_BEAM_LOOKBACK_MIN=${VOLTAGE_BEAM_LOOKBACK_MIN} search_dir=${VOLTAGE_BEAM_SEARCH_DIR}"
+
 if [[ -z "${filename:-}" ]]; then
   filename=""
   if [[ -n "${VOLTAGE_BEAM_WINDOW_END_EPOCH:-}" ]]; then

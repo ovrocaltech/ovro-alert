@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Submit the voltage beam Slurm pipeline for a specific raw voltage file.
-# The job script reads dm, time, and optional filename from the environment
+# You do not need to export any variables: dm, time, and filename are passed
+# via sbatch --export. Optional overrides: OVRO_ALERT_VOLTAGE_BEAM_JOB, --job.
 # (see slurm/voltage_beam_pipeline.job).
 #
 # Usage:
@@ -99,9 +100,15 @@ if [[ ! -f "$JOB_SCRIPT" ]]; then
   exit 1
 fi
 
-# filename= is consumed by voltage_beam_pipeline.job (optional auto-pick if unset).
+# filename= is set so the job never auto-picks by mtime. After ALL, we reset
+# VOLTAGE_BEAM_* tuning vars so a submitter shell (e.g. VOLTAGE_BEAM_LOOKBACK_MIN=8
+# from testing) cannot leak into the batch step and break unrelated logic.
+_submit_export="ALL,dm=${DM},time=${TIME_SEC},filename=${VOLTAGE_FILE}"
+_submit_export+=",VOLTAGE_BEAM_WINDOW_END_EPOCH="
+_submit_export+=",VOLTAGE_BEAM_LOOKBACK_MIN=120"
+
 exec sbatch \
   "--begin=${BEGIN}" \
-  "--export=ALL,dm=${DM},time=${TIME_SEC},filename=${VOLTAGE_FILE}" \
+  "--export=${_submit_export}" \
   "${EXTRA[@]}" \
   "$JOB_SCRIPT"
