@@ -11,14 +11,16 @@
 ## SBATCH --partition=YOUR_PARTITION
 
 # Fill at runtime via environment (recommended):
-#   dm, time — required (see Python submit_voltagebeam → sbatch --export).
+#   dm — required. time — optional seconds for run_pipeline.py --duration; if unset, derived from
+#   dm using the same dispersion delay bound as ovro_alert.lwa_alert_client (50 MHz vs 1 GHz + 10 s).
 #   filename — optional. If unset, pick the newest regular file under VOLTAGE_BEAM_SEARCH_DIR:
 #     • If VOLTAGE_BEAM_WINDOW_END_EPOCH is unset: mtime within the last VOLTAGE_BEAM_LOOKBACK_MIN
 #       minutes of job start (find -mmin). Defaults: /lustre/ubuntu/beam01, lookback 120.
 #       (Alert-driven sbatch sets WINDOW_END_EPOCH so delayed jobs still find the file.)
 #     • If VOLTAGE_BEAM_WINDOW_END_EPOCH is set (integer Unix seconds): mtime must lie in
 #       [end − lookback, end] inclusive, where end is that epoch.
-# Example:
+# Examples:
+#   sbatch --begin=now+2hours --export=ALL,dm=87.3 slurm/voltage_beam_pipeline.job
 #   sbatch --begin=now+2hours --export=ALL,dm=87.3,time=300 slurm/voltage_beam_pipeline.job
 
 set -euo pipefail
@@ -26,8 +28,8 @@ set -euo pipefail
 VOLTAGE_BEAM_SEARCH_DIR="${VOLTAGE_BEAM_SEARCH_DIR:-/lustre/ubuntu/beam01}"
 VOLTAGE_BEAM_LOOKBACK_MIN="${VOLTAGE_BEAM_LOOKBACK_MIN:-120}"
 
-# Log before file pick: on "no file" we exit 1 below and would otherwise never reach dm/time echo.
-echo "Pipeline env: dm=${dm:-<unset>} time=${time:-<unset>} filename=${filename:-<auto>} VOLTAGE_BEAM_WINDOW_END_EPOCH=${VOLTAGE_BEAM_WINDOW_END_EPOCH:-<unset>} VOLTAGE_BEAM_LOOKBACK_MIN=${VOLTAGE_BEAM_LOOKBACK_MIN} search_dir=${VOLTAGE_BEAM_SEARCH_DIR}"
+# Log before file pick: on "no file" we exit 1 below and would otherwise never reach dm/duration echo.
+echo "Pipeline env: dm=${dm:-<unset>} time=${time:-<derive from dm>} filename=${filename:-<auto>} VOLTAGE_BEAM_WINDOW_END_EPOCH=${VOLTAGE_BEAM_WINDOW_END_EPOCH:-<unset>} VOLTAGE_BEAM_LOOKBACK_MIN=${VOLTAGE_BEAM_LOOKBACK_MIN} search_dir=${VOLTAGE_BEAM_SEARCH_DIR}"
 
 if [[ -z "${filename:-}" ]]; then
   filename=""
@@ -76,8 +78,15 @@ if [[ -z "${filename:-}" ]]; then
 fi
 
 : "${dm:?Set dm}"
-: "${time:?Set time (duration)}"
-echo "Pipeline parameters: dm=${dm} time=${time} (duration)"
+if [[ -n "${time:-}" ]]; then
+  duration_sec="${time}"
+  duration_note="from exported time (seconds)"
+else
+  # Keep in sync with ovro_alert.lwa_alert_client: delay(dm, 1e9, 50) + 10
+  duration_sec="$(DM_FOR_DELAY="${dm}" python3 -c "import os; dm=float(os.environ['DM_FOR_DELAY']); print(4.149e3 * dm * (50**-2 - 1e9**-2) + 10.0)")"
+  duration_note="from dm (dispersion delay + 10 s; same as lwa_alert_client.delay)"
+fi
+echo "Pipeline parameters: dm=${dm} duration_sec=${duration_sec} (${duration_note})"
 
 filename_base="$(basename -- "$filename")"
 
@@ -125,7 +134,7 @@ cd "${workdir}"
 python "${run_pipeline_py}" \
     --voltage "${filename_base}" \
     --dm "${dm}" \
-    --duration "${time}" \
+    --duration "${duration_sec}" \
     --workdir "${workdir}"
 
 # Drop the staged raw voltage file to reduce product size.

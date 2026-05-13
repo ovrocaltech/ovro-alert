@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 # Submit the voltage beam Slurm pipeline for a specific raw voltage file.
-# You do not need to export any variables: dm, time, and filename are passed
-# via sbatch --export. Optional overrides: OVRO_ALERT_VOLTAGE_BEAM_JOB, --job.
-# (see slurm/voltage_beam_pipeline.job).
+# You do not need to export any variables: dm and filename are passed via sbatch --export.
+# TIME_SECONDS is optional; if omitted, the job derives duration from dm (see voltage_beam_pipeline.job).
+# Optional overrides: OVRO_ALERT_VOLTAGE_BEAM_JOB, --job.
 #
 # Usage:
-#   submit_voltage_beam_file.sh [--begin WHEN] [--job PATH] VOLTAGE_FILE DM TIME_SECONDS
+#   submit_voltage_beam_file.sh [--begin WHEN] [--job PATH] VOLTAGE_FILE DM [TIME_SECONDS]
 #   submit_voltage_beam_file.sh ... -- EXTRA_SBATCH_ARGS...
 #
 # Examples:
+#   ./slurm/submit_voltage_beam_file.sh /lustre/ubuntu/beam01/foo.raw 87.3
 #   ./slurm/submit_voltage_beam_file.sh /lustre/ubuntu/beam01/foo.raw 87.3 300
 #   ./slurm/submit_voltage_beam_file.sh --begin=now+1hour /path/to/file.raw 120 600
 #   ./slurm/submit_voltage_beam_file.sh /path/to/file.raw 50 120 -- --mail-type=END
@@ -69,15 +70,18 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ $# -lt 3 ]]; then
-  echo "Expected: VOLTAGE_FILE DM TIME_SECONDS" >&2
+if [[ $# -lt 2 ]]; then
+  echo "Expected: VOLTAGE_FILE DM [TIME_SECONDS]" >&2
   usage >&2
   exit 2
 fi
 
 VOLTAGE_FILE="$1"
 DM="$2"
-TIME_SEC="$3"
+TIME_SEC=""
+if [[ $# -ge 3 ]]; then
+  TIME_SEC="$3"
+fi
 
 if [[ ! -f "$VOLTAGE_FILE" ]]; then
   echo "Not a regular file: ${VOLTAGE_FILE}" >&2
@@ -103,7 +107,10 @@ fi
 # filename= is set so the job never auto-picks by mtime. After ALL, we reset
 # VOLTAGE_BEAM_* tuning vars so a submitter shell (e.g. VOLTAGE_BEAM_LOOKBACK_MIN=8
 # from testing) cannot leak into the batch step and break unrelated logic.
-_submit_export="ALL,dm=${DM},time=${TIME_SEC},filename=${VOLTAGE_FILE}"
+_submit_export="ALL,dm=${DM},filename=${VOLTAGE_FILE}"
+if [[ -n "${TIME_SEC}" ]]; then
+  _submit_export+=",time=${TIME_SEC}"
+fi
 _submit_export+=",VOLTAGE_BEAM_WINDOW_END_EPOCH="
 _submit_export+=",VOLTAGE_BEAM_LOOKBACK_MIN=120"
 

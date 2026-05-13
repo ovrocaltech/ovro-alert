@@ -209,7 +209,12 @@ class LWAAlertClient(AlertClient):
         self._schedule_voltage_beam_pipeline(dd, d0)
 
     def _schedule_voltage_beam_pipeline(self, dd, duration_sec):
-        """Queue Slurm FRB pipeline; voltage path is chosen inside the job from /lustre/ubuntu/beam01."""
+        """Queue Slurm FRB pipeline; voltage path is chosen inside the job from /lustre/ubuntu/beam01.
+
+        sbatch exports dm always. ``time`` (run_pipeline --duration) is exported only when the
+        alert included an explicit ``duration``; otherwise the job derives duration from dm to match
+        the dispersion bound used for observations without a fixed length.
+        """
 
         if 'dm' not in dd:
             logger.warning(
@@ -228,8 +233,12 @@ class LWAAlertClient(AlertClient):
             return
 
         dm_s = str(float(dd["dm"]))
-        time_s = str(float(duration_sec))
-        export = f"ALL,dm={dm_s},time={time_s}"
+        # Omit time so the batch script derives --duration from dm (dispersion bound), unless the
+        # alert fixed a custom recording length—then pass time so run_pipeline matches the file.
+        if "duration" in dd:
+            export = f"ALL,dm={dm_s},time={str(float(duration_sec))}"
+        else:
+            export = f"ALL,dm={dm_s}"
         if "VOLTAGE_BEAM_SEARCH_DIR" in environ:
             export += f",VOLTAGE_BEAM_SEARCH_DIR={environ['VOLTAGE_BEAM_SEARCH_DIR']}"
         if "VOLTAGE_BEAM_WINDOW_END_EPOCH" in environ:

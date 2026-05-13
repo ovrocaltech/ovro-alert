@@ -20,7 +20,7 @@ def _client_and_fake_job(tmp_path):
     return client, fake_job, lac
 
 
-def test_schedule_voltage_beam_pipeline_export_dm_time(tmp_path, monkeypatch):
+def test_schedule_voltage_beam_pipeline_export_dm_only_derives_duration_in_job(tmp_path, monkeypatch):
     client, fake_job, lac = _client_and_fake_job(tmp_path)
     monkeypatch.setenv("OVRO_ALERT_VOLTAGE_BEAM_JOB", str(fake_job))
     monkeypatch.setenv("OVRO_ALERT_VOLTAGE_PIPELINE_NODELIST", "lwacalim10")
@@ -46,11 +46,40 @@ def test_schedule_voltage_beam_pipeline_export_dm_time(tmp_path, monkeypatch):
     assert export.startswith("--export=")
     body = export.removeprefix("--export=")
     assert "dm=87.5" in body
-    assert "time=300.0" in body
+    assert ",time=" not in body and not body.startswith("time=")
     # Window anchored at schedule time + duration + slack, not Slurm job start (~2h later).
     assert f"VOLTAGE_BEAM_WINDOW_END_EPOCH={fixed_t + 300 + 180}" in body
     assert "VOLTAGE_BEAM_LOOKBACK_MIN=11" in body  # int((300 + 300) / 60) + 1
     assert argv[4] == str(fake_job)
+
+
+def test_schedule_voltage_beam_pipeline_exports_time_when_alert_has_explicit_duration(
+    tmp_path, monkeypatch
+):
+    client, fake_job, lac = _client_and_fake_job(tmp_path)
+    monkeypatch.setenv("OVRO_ALERT_VOLTAGE_BEAM_JOB", str(fake_job))
+    monkeypatch.setenv("OVRO_ALERT_VOLTAGE_PIPELINE_NODELIST", "lwacalim10")
+
+    mock_run = MagicMock(
+        return_value=CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout="Submitted batch job 4242\n",
+            stderr="",
+        )
+    )
+    fixed_t = 1_700_000_000
+    with patch.object(lac.subprocess, "run", mock_run), patch.object(lac.time, "time", return_value=fixed_t):
+        client._schedule_voltage_beam_pipeline(
+            {"dm": 87.5, "position": "10,20", "duration": 450.0}, 450.0
+        )
+
+    mock_run.assert_called_once()
+    argv = mock_run.call_args[0][0]
+    body = argv[3].removeprefix("--export=")
+    assert "dm=87.5" in body
+    assert "time=450.0" in body
+    assert f"VOLTAGE_BEAM_WINDOW_END_EPOCH={fixed_t + 450 + 180}" in body
 
 
 def test_schedule_skips_without_dm(tmp_path, monkeypatch, caplog):
