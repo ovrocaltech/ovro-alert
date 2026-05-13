@@ -1,10 +1,11 @@
-"""Mirror voltage beam file mtime window + selection (Slurm job + _schedule_voltage_beam_pipeline).
+"""Mirror voltage beam file mtime window + selection in the Slurm job (manual / no filename=).
 
-The Slurm script `slurm/voltage_beam_pipeline.job` picks the newest regular file under
+The Slurm script `slurm/voltage_beam_pipeline.job` can pick the newest regular file under
 `VOLTAGE_BEAM_SEARCH_DIR` whose mtime T satisfies start_sec <= T <= end_sec, with
 end_sec from VOLTAGE_BEAM_WINDOW_END_EPOCH and start_sec = end_sec - lookback_min*60.
+Alert-driven scheduling instead exports ``filename=`` at sbatch time (see lwa_alert_client).
 
-These helpers duplicate that logic in Python so we can regression-test timing without Slurm.
+These helpers duplicate the mtime-window logic in Python so we can regression-test timing without Slurm.
 """
 
 from __future__ import annotations
@@ -23,10 +24,7 @@ def schedule_voltage_beam_window(
     slack_s: int = 180,
     margin_s: int = 300,
 ) -> tuple[int, int, int]:
-    """Match ovro_alert.lwa_alert_client._schedule_voltage_beam_pipeline defaults.
-
-    Returns (window_end_epoch, lookback_min, window_start_epoch).
-    """
+    """Parameters matching historical sbatch exports; still used by the job when filename is unset."""
     end_sec = int(schedule_unix) + int(duration_sec) + slack_s
     lookback_min = int((duration_sec + margin_s) / 60) + 1
     start_sec = end_sec - lookback_min * 60
@@ -46,8 +44,8 @@ def pick_newest_voltage_file(
     return in_window[0][1]
 
 
-def test_schedule_window_matches_existing_sbatch_export():
-    """Keep in sync with tests/test_lwa_voltage_pipeline_schedule.py."""
+def test_schedule_window_matches_sbatch_window_math():
+    """Regression: window end / lookback numbers used in mtime-window examples."""
     fixed_t = 1_700_000_000
     end, lb, start = schedule_voltage_beam_window(fixed_t, 300.0)
     assert end == fixed_t + 300 + 180
@@ -169,38 +167,3 @@ find . -maxdepth 1 -type f -name '*.raw' -printf '%T@\\t%p\\n' \\
         files.append((st.st_mtime, str(d / name)))
     py_pick = pick_newest_voltage_file(files, start_sec, end_sec)
     assert py_pick.endswith("c.raw")
-
-
-def test_env_override_lookback_from_schedule(tmp_path, monkeypatch):
-    """If VOLTAGE_BEAM_LOOKBACK_MIN is set in env, sbatch export uses it (can narrow window vs defaults)."""
-    try:
-        import ovro_alert.lwa_alert_client as lac
-    except ImportError as e:
-        pytest.skip(f"LWA client dependencies unavailable: {e}")
-
-    from subprocess import CompletedProcess
-    from unittest.mock import MagicMock, patch
-
-    fake_job = tmp_path / "v.job"
-    fake_job.write_text("#!/bin/bash\necho\n")
-
-    monkeypatch.setenv("OVRO_ALERT_VOLTAGE_BEAM_JOB", str(fake_job))
-    monkeypatch.setenv("OVRO_ALERT_VOLTAGE_PIPELINE_NODELIST", "n1")
-    monkeypatch.setenv("VOLTAGE_BEAM_LOOKBACK_MIN", "5")
-
-    with patch.object(lac.LWAAlertClient, "__init__", lambda self, con: None):
-        client = lac.LWAAlertClient.__new__(lac.LWAAlertClient)
-
-    mock_run = MagicMock(
-        return_value=CompletedProcess(args=[], returncode=0, stdout="ok\n", stderr="")
-    )
-    fixed_t = 1_700_000_000
-    with patch.object(lac.subprocess, "run", mock_run), patch.object(lac.time, "time", return_value=fixed_t):
-        client._schedule_voltage_beam_pipeline({"dm": 1.0, "position": "0,0"}, 300.0)
-
-    export = mock_run.call_args[0][0][3]
-    assert "VOLTAGE_BEAM_LOOKBACK_MIN=5" in export.removeprefix("--export=")
-    end, lb_default, start_default = schedule_voltage_beam_window(fixed_t, 300.0)
-    narrow_start = end - 5 * 60
-    assert narrow_start > start_default
-    assert lb_default * 60 > 5 * 60

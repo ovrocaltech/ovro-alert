@@ -13,10 +13,10 @@
 # Fill at runtime via environment (recommended):
 #   dm — required. time — optional seconds for run_pipeline.py --duration; if unset, derived from
 #   dm using the same dispersion delay bound as ovro_alert.lwa_alert_client (50 MHz vs 1 GHz + 10 s).
-#   filename — optional. If unset, pick the newest regular file under VOLTAGE_BEAM_SEARCH_DIR:
+#   filename — optional. submit_voltagebeam passes the newest regular file under the search dir at
+#   sbatch time so --begin delays still use that path. If unset, pick under VOLTAGE_BEAM_SEARCH_DIR:
 #     • If VOLTAGE_BEAM_WINDOW_END_EPOCH is unset: mtime within the last VOLTAGE_BEAM_LOOKBACK_MIN
 #       minutes of job start (find -mmin). Defaults: /lustre/ubuntu/beam01, lookback 120.
-#       (Alert-driven sbatch sets WINDOW_END_EPOCH so delayed jobs still find the file.)
 #     • If VOLTAGE_BEAM_WINDOW_END_EPOCH is set (integer Unix seconds): mtime must lie in
 #       [end − lookback, end] inclusive, where end is that epoch.
 # Examples:
