@@ -25,7 +25,7 @@ def _client_and_fake_job(tmp_path):
 def test_schedule_voltage_beam_pipeline_export_dm_only_derives_duration_in_job(tmp_path, monkeypatch):
     client, fake_job, lac = _client_and_fake_job(tmp_path)
     monkeypatch.setenv("OVRO_ALERT_VOLTAGE_BEAM_JOB", str(fake_job))
-    monkeypatch.setenv("OVRO_ALERT_VOLTAGE_PIPELINE_NODELIST", "lwacalim10")
+    monkeypatch.setenv("OVRO_ALERT_VOLTAGE_PIPELINE_NODELIST", "lwacalim02")
 
     beam_dir = tmp_path / "beam01"
     beam_dir.mkdir()
@@ -52,7 +52,7 @@ def test_schedule_voltage_beam_pipeline_export_dm_only_derives_duration_in_job(t
     argv = mock_run.call_args[0][0]
     assert argv[0] == "sbatch"
     assert argv[1].startswith("--begin=")
-    assert argv[2] == "--nodelist=lwacalim10"
+    assert argv[2] == "--nodelist=lwacalim02"
     export = argv[3]
     assert export.startswith("--export=")
     body = export.removeprefix("--export=")
@@ -67,7 +67,7 @@ def test_schedule_voltage_beam_pipeline_exports_time_when_alert_has_explicit_dur
 ):
     client, fake_job, lac = _client_and_fake_job(tmp_path)
     monkeypatch.setenv("OVRO_ALERT_VOLTAGE_BEAM_JOB", str(fake_job))
-    monkeypatch.setenv("OVRO_ALERT_VOLTAGE_PIPELINE_NODELIST", "lwacalim10")
+    monkeypatch.setenv("OVRO_ALERT_VOLTAGE_PIPELINE_NODELIST", "lwacalim02")
 
     beam_dir = tmp_path / "beam01"
     beam_dir.mkdir()

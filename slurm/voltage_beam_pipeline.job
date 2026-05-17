@@ -4,7 +4,7 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
 # nodelist: restrict which hosts may run the job (Slurm still allocates one node unless --nodes>1).
-#SBATCH --nodelist=lwacalim10,lwacalim02
+#SBATCH --nodelist=lwacalim02
 #SBATCH --output=/home/pipeline/slurm/voltage_beam_pipeline-%j.out
 #SBATCH --error=/home/pipeline/slurm/voltage_beam_pipeline-%j.err
 ## SBATCH --mem=NG

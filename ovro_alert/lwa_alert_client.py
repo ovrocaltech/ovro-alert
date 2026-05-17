@@ -63,7 +63,7 @@ RECORDER = 'drt1'
 # same path (see _schedule_voltage_beam_pipeline). The job script still supports mtime-window
 # auto-pick when filename is not set (manual sbatch).
 VOLTAGE_PIPELINE_BEGIN_DELAY = "now+2hours"
-VOLTAGE_PIPELINE_NODELIST = environ.get("OVRO_ALERT_VOLTAGE_PIPELINE_NODELIST", "lwacalim10")
+VOLTAGE_PIPELINE_NODELIST = environ.get("OVRO_ALERT_VOLTAGE_PIPELINE_NODELIST", "lwacalim02")
 
 class LWAAlertClient(AlertClient):
     def __init__(self, con):
