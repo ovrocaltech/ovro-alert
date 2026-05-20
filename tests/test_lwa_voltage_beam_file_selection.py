@@ -1,9 +1,9 @@
 """Mirror voltage beam file mtime window + selection in the Slurm job (manual / no filename=).
 
-The Slurm script `slurm/voltage_beam_pipeline.job` can pick the newest regular file under
+The Slurm script `slurm/voltage_beam_pipeline.job` picks the newest regular file under
 `VOLTAGE_BEAM_SEARCH_DIR` whose mtime T satisfies start_sec <= T <= end_sec, with
 end_sec from VOLTAGE_BEAM_WINDOW_END_EPOCH and start_sec = end_sec - lookback_min*60.
-Alert-driven scheduling instead exports ``filename=`` at sbatch time (see lwa_alert_client).
+Alert-driven scheduling exports that window at sbatch time (see lwa_alert_client).
 
 These helpers duplicate the mtime-window logic in Python so we can regression-test timing without Slurm.
 """
@@ -16,19 +16,7 @@ from pathlib import Path
 
 import pytest
 
-
-def schedule_voltage_beam_window(
-    schedule_unix: float,
-    duration_sec: float,
-    *,
-    slack_s: int = 180,
-    margin_s: int = 300,
-) -> tuple[int, int, int]:
-    """Parameters matching historical sbatch exports; still used by the job when filename is unset."""
-    end_sec = int(schedule_unix) + int(duration_sec) + slack_s
-    lookback_min = int((duration_sec + margin_s) / 60) + 1
-    start_sec = end_sec - lookback_min * 60
-    return end_sec, lookback_min, start_sec
+from ovro_alert.voltage_beam_selection import schedule_voltage_beam_window
 
 
 def pick_newest_voltage_file(
@@ -113,6 +101,16 @@ def test_long_dm_derived_duration_expands_lookback():
     # File written near start of hour-long obs still inside window
     ftime = t0 + 30.0
     assert pick_newest_voltage_file([(ftime, "long.raw")], start, end) == "long.raw"
+
+
+def test_previous_observation_before_window_is_excluded():
+    """Regression: file from an earlier alert must not win when a newer file is in-window."""
+    t0 = 1_700_000_000
+    end, _, start = schedule_voltage_beam_window(t0, 300.0)
+    prev_mtime = float(start) - 3600.0
+    curr_mtime = t0 + 250.0
+    files = [(prev_mtime, "previous.raw"), (curr_mtime, "current.raw")]
+    assert pick_newest_voltage_file(files, start, end) == "current.raw"
 
 
 @pytest.mark.skipif(not shutil.which("bash"), reason="bash not available")

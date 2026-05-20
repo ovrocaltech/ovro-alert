@@ -3,7 +3,6 @@ import logging
 import subprocess
 import time
 from pathlib import Path
-from typing import Optional
 from time import sleep
 import threading
 from slack_sdk import WebClient
@@ -11,6 +10,11 @@ from slack_sdk.errors import SlackApiError
 from os import environ
 from astropy.time import Time
 from ovro_alert.alert_client import AlertClient
+from ovro_alert.voltage_beam_selection import (
+    schedule_voltage_beam_window,
+    sbatch_voltage_beam_exports,
+    voltage_beam_search_dir,
+)
 from mnc import control
 from observing import makesdf
 from dsautils import dsa_store
@@ -34,34 +38,11 @@ else:
 delay = lambda dm, f1, f2: 4.149 * 1e3 * dm * (f2 ** (-2) - f1 ** (-2))
 
 
-def _newest_regular_file_in_dir(dir_path: Path) -> Optional[Path]:
-    """Return the path with the largest mtime among regular files directly under dir_path."""
-    if not dir_path.is_dir():
-        return None
-    best_mtime: float = float("-inf")
-    best_path: Optional[Path] = None
-    try:
-        for p in dir_path.iterdir():
-            try:
-                if not p.is_file():
-                    continue
-                m = p.stat().st_mtime
-            except OSError:
-                continue
-            if m > best_mtime:
-                best_mtime = m
-                best_path = p
-    except OSError:
-        return None
-    return best_path
-
-
 RECORDER = 'drt1'
 
-# Slurm: run voltage_beam_pipeline.job two hours after submit_voltagebeam. The newest regular file
-# in the beam directory at sbatch time is passed as filename= so delayed execution still opens the
-# same path (see _schedule_voltage_beam_pipeline). The job script still supports mtime-window
-# auto-pick when filename is not set (manual sbatch).
+# Slurm: run voltage_beam_pipeline.job after submit_voltagebeam (default now+2hours).
+# Do not pass filename= at sbatch: the previous observation is still the newest file.
+# Export an mtime window (submit + duration) so the job picks the correct file at run time.
 VOLTAGE_PIPELINE_BEGIN_DELAY = "now+2hours"
 VOLTAGE_PIPELINE_NODELIST = environ.get("OVRO_ALERT_VOLTAGE_PIPELINE_NODELIST", "lwacalim02")
 
@@ -235,9 +216,8 @@ class LWAAlertClient(AlertClient):
     def _schedule_voltage_beam_pipeline(self, dd, duration_sec):
         """Queue Slurm FRB pipeline (typically ``--begin=now+2hours``).
 
-        Resolves the raw voltage file once at **sbatch** time: newest regular file under
-        ``VOLTAGE_BEAM_SEARCH_DIR`` (default ``/lustre/ubuntu/beam01``), then exports ``filename=``
-        so the batch step still uses that path after the begin delay.
+        Exports an mtime window so the job selects the voltage file for *this* observation
+        when it starts, not the newest file at sbatch time (which is usually the previous run).
 
         Exports ``dm`` always. Exports ``time`` only when the alert included an explicit
         ``duration``; otherwise the job derives ``--duration`` from ``dm``.
@@ -259,27 +239,25 @@ class LWAAlertClient(AlertClient):
             logger.warning("Skipping voltage beam pipeline Slurm job: script not found at %s", job_path)
             return
 
-        dm_s = str(float(dd["dm"]))
-        # Omit time so the batch script derives --duration from dm (dispersion bound), unless the
-        # alert fixed a custom recording length—then pass time so run_pipeline matches the file.
-        if "duration" in dd:
-            export = f"ALL,dm={dm_s},time={str(float(duration_sec))}"
-        else:
-            export = f"ALL,dm={dm_s}"
-
-        search_dir = Path(environ.get("VOLTAGE_BEAM_SEARCH_DIR", "/lustre/ubuntu/beam01"))
-        voltage_file = _newest_regular_file_in_dir(search_dir)
-        if voltage_file is None:
-            logger.warning(
-                "Skipping voltage beam pipeline Slurm job: no regular files under %s at submit time",
-                search_dir,
-            )
-            return
-        export += f",filename={voltage_file.resolve()}"
+        schedule_unix = time.time()
+        explicit_time = float(duration_sec) if "duration" in dd else None
+        export_body = sbatch_voltage_beam_exports(
+            float(dd["dm"]),
+            float(duration_sec),
+            schedule_unix=schedule_unix,
+            explicit_time_sec=explicit_time,
+        )
+        export = f"ALL,{export_body}"
+        end_sec, lookback_min, start_sec = schedule_voltage_beam_window(schedule_unix, duration_sec)
+        search_dir = voltage_beam_search_dir()
         logger.info(
-            "Voltage beam pipeline: raw file at sbatch time (newest under %s): %s",
+            "Voltage beam pipeline: file pick at job start under %s, mtime window "
+            "[%s, %s] (lookback %s min, end epoch %s); not pinning filename at sbatch",
             search_dir,
-            voltage_file.resolve(),
+            start_sec,
+            end_sec,
+            lookback_min,
+            end_sec,
         )
 
         try:

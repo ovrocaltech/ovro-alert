@@ -13,12 +13,12 @@
 # Fill at runtime via environment (recommended):
 #   dm — required. time — optional seconds for run_pipeline.py --duration; if unset, derived from
 #   dm using the same dispersion delay bound as ovro_alert.lwa_alert_client (50 MHz vs 1 GHz + 10 s).
-#   filename — optional. submit_voltagebeam passes the newest regular file under the search dir at
-#   sbatch time so --begin delays still use that path. If unset, pick under VOLTAGE_BEAM_SEARCH_DIR:
-#     • If VOLTAGE_BEAM_WINDOW_END_EPOCH is unset: mtime within the last VOLTAGE_BEAM_LOOKBACK_MIN
-#       minutes of job start (find -mmin). Defaults: /lustre/ubuntu/beam01, lookback 120.
-#     • If VOLTAGE_BEAM_WINDOW_END_EPOCH is set (integer Unix seconds): mtime must lie in
-#       [end − lookback, end] inclusive, where end is that epoch.
+#   filename — optional explicit path (manual submit_voltage_beam_file.sh). Alert-driven sbatch
+#   does not set filename; it exports VOLTAGE_BEAM_WINDOW_END_EPOCH + VOLTAGE_BEAM_LOOKBACK_MIN.
+#   If filename is unset, pick under VOLTAGE_BEAM_SEARCH_DIR:
+#     • If VOLTAGE_BEAM_WINDOW_END_EPOCH is set: newest file with mtime in [end − lookback, end].
+#     • Else: mtime within the last VOLTAGE_BEAM_LOOKBACK_MIN minutes of job start (find -mmin).
+#   Defaults: /lustre/ubuntu/beam01, lookback 120.
 # Examples:
 #   sbatch --begin=now+2hours --export=ALL,dm=87.3 slurm/voltage_beam_pipeline.job
 #   sbatch --begin=now+2hours --export=ALL,dm=87.3,time=300 slurm/voltage_beam_pipeline.job
@@ -27,6 +27,29 @@ set -euo pipefail
 
 VOLTAGE_BEAM_SEARCH_DIR="${VOLTAGE_BEAM_SEARCH_DIR:-/lustre/ubuntu/beam01}"
 VOLTAGE_BEAM_LOOKBACK_MIN="${VOLTAGE_BEAM_LOOKBACK_MIN:-120}"
+
+# Log all candidates in a selection window; set filename to newest (first line). Echo warnings if n>1.
+_pick_newest_voltage_file_from_candidates() {
+  local -a _cand=()
+  mapfile -t _cand
+  local _n="${#_cand[@]}"
+  if [[ "${_n}" -eq 0 ]]; then
+    return 1
+  fi
+  if [[ "${_n}" -gt 1 ]]; then
+    echo "WARNING: ${_n} voltage files in selection window; using newest by mtime:" >&2
+    local _ts _path _iso
+    for _line in "${_cand[@]}"; do
+      IFS=$'\t' read -r _ts _path <<< "${_line}"
+      _iso="$(date -u -d "@${_ts%.*}" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || echo "?")"
+      echo "  candidate: ${_path} (mtime unix=${_ts}, ${_iso})" >&2
+    done
+  fi
+  IFS=$'\t' read -r _pick_ts _pick_path <<< "${_cand[0]}"
+  filename="${_pick_path}"
+  pick_mtime="${_pick_ts%.*}"
+  return 0
+}
 
 # Log before file pick: on "no file" we exit 1 below and would otherwise never reach dm/duration echo.
 echo "Pipeline env: dm=${dm:-<unset>} time=${time:-<derive from dm>} filename=${filename:-<auto>} VOLTAGE_BEAM_WINDOW_END_EPOCH=${VOLTAGE_BEAM_WINDOW_END_EPOCH:-<unset>} VOLTAGE_BEAM_LOOKBACK_MIN=${VOLTAGE_BEAM_LOOKBACK_MIN} search_dir=${VOLTAGE_BEAM_SEARCH_DIR}"
@@ -43,17 +66,14 @@ if [[ -z "${filename:-}" ]]; then
     end_iso="$(date -u -d "@${end_sec}" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || echo "?")"
     start_iso="$(date -u -d "@${start_sec}" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || echo "?")"
     echo "Voltage file search: assumed window end unix=${end_sec} (${end_iso}), start unix=${start_sec} (${start_iso}), lookback ${VOLTAGE_BEAM_LOOKBACK_MIN} min"
-    while IFS=$'\t' read -r _ts path; do
-      filename="$path"
-      break
-    done < <(find "${VOLTAGE_BEAM_SEARCH_DIR}" -maxdepth 1 -type f -printf '%T@\t%p\n' 2>/dev/null \
-      | awk -v s="${start_sec}" -v e="${end_sec}" -F '\t' '$1>=s && $1<=e {print}' \
-      | sort -t $'\t' -k1,1nr | head -1)
-    if [[ -z "${filename}" ]]; then
+    if ! _pick_newest_voltage_file_from_candidates < <(
+      find "${VOLTAGE_BEAM_SEARCH_DIR}" -maxdepth 1 -type f -printf '%T@\t%p\n' 2>/dev/null \
+        | awk -v s="${start_sec}" -v e="${end_sec}" -F '\t' '$1>=s && $1<=e {print}' \
+        | sort -t $'\t' -k1,1nr
+    ); then
       echo "No voltage file under ${VOLTAGE_BEAM_SEARCH_DIR} with mtime in [${start_sec} (${start_iso}), ${end_sec} (${end_iso})] (${VOLTAGE_BEAM_LOOKBACK_MIN} min lookback ending at epoch ${end_sec})" >&2
       exit 1
     fi
-    pick_mtime="$(stat -c %Y "${filename}" 2>/dev/null || echo "?")"
     pick_iso="$(date -u -d "@${pick_mtime}" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || echo "?")"
     echo "Resolved voltage file (auto, window end epoch ${end_sec}): ${filename} (mtime unix=${pick_mtime}, ${pick_iso})"
   else
@@ -62,16 +82,14 @@ if [[ -z "${filename:-}" ]]; then
     window_start_sec=$((now_sec - VOLTAGE_BEAM_LOOKBACK_MIN * 60))
     window_start_iso="$(date -u -d "@${window_start_sec}" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || echo "?")"
     echo "Voltage file search: assumed reference time (job start) unix=${now_sec} (${now_iso}), mtime window approx [${window_start_sec} (${window_start_iso}), ${now_sec} (${now_iso})] via find -mmin -${VOLTAGE_BEAM_LOOKBACK_MIN}"
-    while IFS=$'\t' read -r _ts path; do
-      filename="$path"
-      break
-    done < <(find "${VOLTAGE_BEAM_SEARCH_DIR}" -maxdepth 1 -type f \
-      -mmin "-${VOLTAGE_BEAM_LOOKBACK_MIN}" -printf '%T@\t%p\n' 2>/dev/null | sort -t $'\t' -k1,1nr | head -1)
-    if [[ -z "${filename}" ]]; then
+    if ! _pick_newest_voltage_file_from_candidates < <(
+      find "${VOLTAGE_BEAM_SEARCH_DIR}" -maxdepth 1 -type f \
+        -mmin "-${VOLTAGE_BEAM_LOOKBACK_MIN}" -printf '%T@\t%p\n' 2>/dev/null \
+        | sort -t $'\t' -k1,1nr
+    ); then
       echo "No voltage file found under ${VOLTAGE_BEAM_SEARCH_DIR} modified within the last ${VOLTAGE_BEAM_LOOKBACK_MIN} minutes (reference unix=${now_sec}, ${now_iso})" >&2
       exit 1
     fi
-    pick_mtime="$(stat -c %Y "${filename}" 2>/dev/null || echo "?")"
     pick_iso="$(date -u -d "@${pick_mtime}" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || echo "?")"
     echo "Resolved voltage file (auto): ${filename} (mtime unix=${pick_mtime}, ${pick_iso})"
   fi
@@ -138,7 +156,7 @@ python "${run_pipeline_py}" \
     --workdir "${workdir}"
 
 # Drop the staged raw voltage file to reduce product size.
-# (This removes only the copy in the per-job workdir, not the original under /lustre/ubuntu/beam01.)
+# (This removes only the copy in the per-job workdir, not the original under the beam search dir.)
 rm -f "${dst}"
 
 # Finalize: move products to shared Lustre so results are visible from any node.
