@@ -6,11 +6,10 @@ not started yet. Instead, export an mtime window anchored to submit time + obser
 duration; the job picks the newest file in that window when it starts (see
 ``slurm/voltage_beam_pipeline.job``).
 """
-from __future__ import annotations
-
 import re
 import time
 from pathlib import Path
+from typing import Optional, Tuple
 
 DEFAULT_VOLTAGE_BEAM_SEARCH_DIR = "/lustre/ubuntu/beam01"
 
@@ -21,7 +20,7 @@ def schedule_voltage_beam_window(
     *,
     slack_s: int = 180,
     margin_s: int = 300,
-) -> tuple[int, int, int]:
+) -> Tuple[int, int, int]:
     """Compute mtime window for the voltage file produced by this observation.
 
     Returns ``(window_end_epoch, lookback_min, window_start_epoch)`` matching
@@ -47,8 +46,8 @@ def sbatch_voltage_beam_exports(
     dm: float,
     duration_sec: float,
     *,
-    schedule_unix: float | None = None,
-    explicit_time_sec: float | None = None,
+    schedule_unix=None,  # type: Optional[float]
+    explicit_time_sec=None,  # type: Optional[float]
 ) -> str:
     """Build the ``--export=`` body for ``voltage_beam_pipeline.job`` (without ``ALL,`` prefix)."""
     if schedule_unix is None:
@@ -74,16 +73,17 @@ _PIPELINE_PARAMS_RE = re.compile(
 )
 
 
-def parse_voltage_beam_slurm_stdout(content: str) -> tuple[float, float]:
+def parse_voltage_beam_slurm_stdout(content):
+    # type: (str) -> Tuple[float, float]
     """Extract ``(dm, duration_sec)`` from ``voltage_beam_pipeline.job`` stdout.
 
     Prefers ``Pipeline parameters: ... duration_sec=`` (the value passed to
     ``run_pipeline.py --duration``). Falls back to ``time=`` on the
     ``Pipeline env:`` line when duration was exported explicitly.
     """
-    dm: float | None = None
-    duration_sec: float | None = None
-    env_time: float | None = None
+    dm = None  # type: Optional[float]
+    duration_sec = None  # type: Optional[float]
+    env_time = None  # type: Optional[float]
 
     for line in content.splitlines():
         m_env = _PIPELINE_ENV_RE.match(line)

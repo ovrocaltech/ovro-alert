@@ -8,8 +8,6 @@ Alert-driven scheduling exports that window at sbatch time (see lwa_alert_client
 These helpers duplicate the mtime-window logic in Python so we can regression-test timing without Slurm.
 """
 
-from __future__ import annotations
-
 import shutil
 import subprocess
 from pathlib import Path
@@ -19,11 +17,8 @@ import pytest
 from ovro_alert.voltage_beam_selection import schedule_voltage_beam_window
 
 
-def pick_newest_voltage_file(
-    files: list[tuple[float, str]],
-    start_sec: float,
-    end_sec: float,
-) -> str | None:
+def pick_newest_voltage_file(files, start_sec, end_sec):
+    # type: (list, float, float) -> Optional[str]
     """Match voltage_beam_pipeline.job: awk filter + sort by mtime descending + head -1."""
     in_window = [(t, p) for t, p in files if start_sec <= t <= end_sec]
     if not in_window:
