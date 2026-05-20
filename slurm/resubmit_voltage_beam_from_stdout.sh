@@ -1,36 +1,41 @@
 #!/usr/bin/env bash
 # Re-submit voltage_beam_pipeline.job using dm and duration parsed from a prior job's stdout.
 #
-# Reads lines written by slurm/voltage_beam_pipeline.job, e.g.:
-#   Pipeline env: dm=87.3 time=300 ...
-#   Pipeline parameters: dm=87.3 duration_sec=300 (from exported time ...)
-#
-# A fresh mtime window is computed at resubmit time (same rules as alert-driven sbatch).
+# By default reuses the *original* mtime window from the log so a late resubmit still finds
+# the recorded file under /lustre/ubuntu/beam01. Override with the options below.
 #
 # Usage:
 #   resubmit_voltage_beam_from_stdout.sh SLURM_STDOUT_FILE
-#   resubmit_voltage_beam_from_stdout.sh --begin=now+1hour /home/pipeline/slurm/voltage_beam_pipeline-12345.out
-#   resubmit_voltage_beam_from_stdout.sh --dry-run voltage_beam_pipeline-12345.out
+#   resubmit_voltage_beam_from_stdout.sh --window-end=1700005000 --lookback-min=34 job.out
+#   resubmit_voltage_beam_from_stdout.sh --filename=/lustre/ubuntu/beam01/foo.raw job.out
+#   resubmit_voltage_beam_from_stdout.sh --window-now job.out
+#   resubmit_voltage_beam_from_stdout.sh --dry-run job.out
+#
+# Options:
+#   --window-end EPOCH    VOLTAGE_BEAM_WINDOW_END_EPOCH for file pick (mtime <= EPOCH)
+#   --lookback-min MIN    VOLTAGE_BEAM_LOOKBACK_MIN (window start = end - MIN*60)
+#   --filename PATH       Pin voltage file; skip mtime window pick
+#   --window-now          Anchor window to resubmit time (not for late retries)
+#   --begin WHEN          sbatch --begin (default: now)
+#   --job PATH            batch script path
+#   --dry-run             print sbatch command only
 #
 # Environment (optional):
-#   OVRO_ALERT_VOLTAGE_BEAM_JOB          — path to voltage_beam_pipeline.job
-#   OVRO_ALERT_VOLTAGE_PIPELINE_NODELIST — sbatch --nodelist (default: lwacalim02)
-#   VOLTAGE_BEAM_SEARCH_DIR              — beam directory for file pick at job start
+#   OVRO_ALERT_VOLTAGE_BEAM_JOB, OVRO_ALERT_VOLTAGE_PIPELINE_NODELIST
 
 set -euo pipefail
 
 usage() {
-  sed -n '1,18p' "$0" | tail -n +2 | sed -n '/^# /s/^# //p'
-  echo "Options:" >&2
-  echo "  --begin WHEN   sbatch --begin (default: now)" >&2
-  echo "  --job PATH     batch script (default: slurm/voltage_beam_pipeline.job)" >&2
-  echo "  --dry-run      parse and print sbatch command without submitting" >&2
-  echo "  --             remaining args passed to sbatch before the job script" >&2
+  sed -n '1,26p' "$0" | tail -n +2 | sed -n '/^# /s/^# //p'
 }
 
 BEGIN="now"
 JOB_SCRIPT="${OVRO_ALERT_VOLTAGE_BEAM_JOB:-}"
 DRY_RUN=0
+WINDOW_NOW=0
+WINDOW_END=""
+LOOKBACK_MIN=""
+FILENAME=""
 EXTRA=()
 
 while [[ $# -gt 0 ]]; do
@@ -54,6 +59,34 @@ while [[ $# -gt 0 ]]; do
     --job)
       JOB_SCRIPT="${2:?--job requires an argument}"
       shift 2
+      ;;
+    --window-end=*)
+      WINDOW_END="${1#*=}"
+      shift
+      ;;
+    --window-end)
+      WINDOW_END="${2:?--window-end requires an argument}"
+      shift 2
+      ;;
+    --lookback-min=*)
+      LOOKBACK_MIN="${1#*=}"
+      shift
+      ;;
+    --lookback-min)
+      LOOKBACK_MIN="${2:?--lookback-min requires an argument}"
+      shift 2
+      ;;
+    --filename=*)
+      FILENAME="${1#*=}"
+      shift
+      ;;
+    --filename)
+      FILENAME="${2:?--filename requires an argument}"
+      shift 2
+      ;;
+    --window-now)
+      WINDOW_NOW=1
+      shift
       ;;
     --dry-run)
       DRY_RUN=1
@@ -99,23 +132,30 @@ fi
 _REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 read -r DM DURATION_SEC EXPORT_BODY < <(
-  python3 - "${STDOUT_FILE}" "${_REPO_ROOT}" <<'PY'
+  python3 - "${STDOUT_FILE}" "${_REPO_ROOT}" "${WINDOW_END}" "${LOOKBACK_MIN}" \
+    "${FILENAME}" "${WINDOW_NOW}" <<'PY'
 import sys
 from pathlib import Path
 
 repo = Path(sys.argv[2])
 sys.path.insert(0, str(repo))
-from ovro_alert.voltage_beam_selection import (
-    parse_voltage_beam_slurm_stdout,
-    sbatch_voltage_beam_exports,
-)
+from ovro_alert.voltage_beam_selection import build_resubmit_export
 
-content = Path(sys.argv[1]).read_text()
-dm, duration_sec = parse_voltage_beam_slurm_stdout(content)
-export_body = sbatch_voltage_beam_exports(
-    dm, duration_sec, explicit_time_sec=duration_sec
+stdout_path = Path(sys.argv[1])
+window_end = sys.argv[3].strip() or None
+lookback = sys.argv[4].strip() or None
+filename = sys.argv[5].strip() or None
+window_now = sys.argv[6].strip() == "1"
+
+content = stdout_path.read_text()
+dm, duration_sec, export_body = build_resubmit_export(
+    content,
+    filename=filename,
+    window_end_epoch=int(window_end) if window_end else None,
+    lookback_min=int(lookback) if lookback else None,
+    window_now=window_now,
 )
-print(dm, duration_sec, export_body, sep="\t")
+print("{0}\t{1}\t{2}".format(dm, duration_sec, export_body))
 PY
 )
 
