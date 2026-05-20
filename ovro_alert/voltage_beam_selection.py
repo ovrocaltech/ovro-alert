@@ -8,6 +8,7 @@ duration; the job picks the newest file in that window when it starts (see
 """
 from __future__ import annotations
 
+import re
 import time
 from pathlib import Path
 
@@ -63,3 +64,52 @@ def sbatch_voltage_beam_exports(
     if explicit_time_sec is not None:
         parts.append(f"time={float(explicit_time_sec)}")
     return ",".join(parts)
+
+
+_PIPELINE_ENV_RE = re.compile(
+    r"^Pipeline env:.*\bdm=(?P<dm>[^\s]+).*\btime=(?P<time>[^\s]+)",
+)
+_PIPELINE_PARAMS_RE = re.compile(
+    r"^Pipeline parameters: dm=(?P<dm>[^\s]+) duration_sec=(?P<duration>[^\s]+)",
+)
+
+
+def parse_voltage_beam_slurm_stdout(content: str) -> tuple[float, float]:
+    """Extract ``(dm, duration_sec)`` from ``voltage_beam_pipeline.job`` stdout.
+
+    Prefers ``Pipeline parameters: ... duration_sec=`` (the value passed to
+    ``run_pipeline.py --duration``). Falls back to ``time=`` on the
+    ``Pipeline env:`` line when duration was exported explicitly.
+    """
+    dm: float | None = None
+    duration_sec: float | None = None
+    env_time: float | None = None
+
+    for line in content.splitlines():
+        m_env = _PIPELINE_ENV_RE.match(line)
+        if m_env:
+            dm = float(m_env.group("dm"))
+            raw_time = m_env.group("time")
+            if raw_time != "<derive" and not raw_time.startswith("<"):
+                env_time = float(raw_time)
+            continue
+        m_params = _PIPELINE_PARAMS_RE.match(line)
+        if m_params:
+            dm = float(m_params.group("dm"))
+            duration_sec = float(m_params.group("duration"))
+            break
+
+    if dm is None:
+        raise ValueError(
+            "Could not parse dm from Slurm stdout "
+            "(expected 'Pipeline env:' or 'Pipeline parameters:' lines)"
+        )
+    if duration_sec is None:
+        if env_time is not None:
+            duration_sec = env_time
+        else:
+            raise ValueError(
+                "Could not parse duration from Slurm stdout "
+                "(expected 'Pipeline parameters: ... duration_sec=' or explicit time=)"
+            )
+    return dm, duration_sec
