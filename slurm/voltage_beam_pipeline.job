@@ -11,8 +11,10 @@
 ## SBATCH --partition=YOUR_PARTITION
 
 # Fill at runtime via environment (recommended):
-#   dm — required. time — optional seconds for run_pipeline.py --duration; if unset, derived from
-#   dm using the same dispersion delay bound as ovro_alert.lwa_alert_client (50 MHz vs 1 GHz + 10 s).
+#   dm — required. time — optional seconds for run_pipeline.py --duration:
+#     unset — derived from dm (alert auto-pick; same delay bound as lwa_alert_client)
+#     0     — search the full combined PSRFITS span (all segments)
+#     N>0   — keep only the first N seconds in the HDF5/search
 #   filename — optional explicit path (manual submit_voltage_beam_file.sh). Alert-driven sbatch
 #   does not set filename; it exports VOLTAGE_BEAM_WINDOW_END_EPOCH + VOLTAGE_BEAM_LOOKBACK_MIN.
 #   If filename is unset, pick under VOLTAGE_BEAM_SEARCH_DIR:
@@ -22,6 +24,7 @@
 # Examples:
 #   sbatch --begin=now+2hours --export=ALL,dm=87.3 slurm/voltage_beam_pipeline.job
 #   sbatch --begin=now+2hours --export=ALL,dm=87.3,time=300 slurm/voltage_beam_pipeline.job
+#   sbatch --export=ALL,dm=57,time=0,filename=/lustre/ubuntu/beam01/foo.raw slurm/voltage_beam_pipeline.job
 
 set -euo pipefail
 
@@ -96,9 +99,13 @@ if [[ -z "${filename:-}" ]]; then
 fi
 
 : "${dm:?Set dm}"
-if [[ -n "${time:-}" ]]; then
+if [[ -v time ]]; then
   duration_sec="${time}"
-  duration_note="from exported time (seconds)"
+  if [[ "${duration_sec}" == "0" ]]; then
+    duration_note="full combined PSRFITS span (time=0)"
+  else
+    duration_note="from exported time (seconds)"
+  fi
 else
   # Keep in sync with ovro_alert.lwa_alert_client: delay(dm, 1e9, 50) + 10
   duration_sec="$(DM_FOR_DELAY="${dm}" python3 -c "import os; dm=float(os.environ['DM_FOR_DELAY']); print(4.149e3 * dm * (50**-2 - 1e9**-2) + 10.0)")"

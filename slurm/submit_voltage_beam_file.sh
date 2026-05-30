@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Submit the voltage beam Slurm pipeline for a specific raw voltage file.
 # You do not need to export any variables: dm and filename are passed via sbatch --export.
-# TIME_SECONDS is optional; if omitted, the job derives duration from dm (see voltage_beam_pipeline.job).
+# TIME_SECONDS is optional; if omitted, exports time=0 (search the full voltage/PSRFITS span).
+# Pass a positive value to cap the HDF5/search window (same as run_pipeline.py --duration).
 # Optional overrides: OVRO_ALERT_VOLTAGE_BEAM_JOB, --job.
 #
 # Usage:
@@ -78,9 +79,10 @@ fi
 
 VOLTAGE_FILE="$1"
 DM="$2"
-TIME_SEC=""
 if [[ $# -ge 3 ]]; then
   TIME_SEC="$3"
+else
+  TIME_SEC="0"
 fi
 
 if [[ ! -f "$VOLTAGE_FILE" ]]; then
@@ -107,10 +109,7 @@ fi
 # filename= is set so the job never auto-picks by mtime. After ALL, we reset
 # VOLTAGE_BEAM_* tuning vars so a submitter shell (e.g. VOLTAGE_BEAM_LOOKBACK_MIN=8
 # from testing) cannot leak into the batch step and break unrelated logic.
-_submit_export="ALL,dm=${DM},filename=${VOLTAGE_FILE}"
-if [[ -n "${TIME_SEC}" ]]; then
-  _submit_export+=",time=${TIME_SEC}"
-fi
+_submit_export="ALL,dm=${DM},filename=${VOLTAGE_FILE},time=${TIME_SEC}"
 _submit_export+=",VOLTAGE_BEAM_WINDOW_END_EPOCH="
 _submit_export+=",VOLTAGE_BEAM_LOOKBACK_MIN=120"
 

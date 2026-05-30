@@ -10,6 +10,16 @@ from ovro_alert.voltage_beam_selection import (
 )
 
 
+def test_parse_full_file_time_zero():
+    text = """\
+Pipeline env: dm=57 time=0 filename=/lustre/ubuntu/beam01/foo.raw VOLTAGE_BEAM_WINDOW_END_EPOCH= VOLTAGE_BEAM_LOOKBACK_MIN=120 search_dir=/lustre/ubuntu/beam01
+Pipeline parameters: dm=57 duration_sec=0 (full combined PSRFITS span (time=0))
+"""
+    dm, dur = parse_voltage_beam_slurm_stdout(text)
+    assert dm == 57.0
+    assert dur == 0.0
+
+
 def test_parse_explicit_time_from_env_and_parameters():
     text = """\
 Pipeline env: dm=87.3 time=300 filename=<auto> VOLTAGE_BEAM_WINDOW_END_EPOCH=1700000480 VOLTAGE_BEAM_LOOKBACK_MIN=11 search_dir=/lustre/ubuntu/beam01

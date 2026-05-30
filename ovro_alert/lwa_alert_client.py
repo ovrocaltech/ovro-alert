@@ -220,7 +220,8 @@ class LWAAlertClient(AlertClient):
         when it starts, not the newest file at sbatch time (which is usually the previous run).
 
         Exports ``dm`` always. Exports ``time`` only when the alert included an explicit
-        ``duration``; otherwise the job derives ``--duration`` from ``dm``.
+        ``duration``; otherwise the job derives ``--duration`` from ``dm``. Use ``time=0``
+        (manual submit_voltage_beam_file.sh default) for a full-file search.
         """
 
         if 'dm' not in dd:
