@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61", "setuptools_scm>=8"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ovro-alert"
+description = "Code and services for sending, receiving, and using astronomical alerts at OVRO"
+readme = "README.md"
+requires-python = ">=3.9"
+dynamic = ["version"]
+dependencies = [
+    "requests",
+]
+
+[project.urls]
+Homepage = "https://github.com/ovrocaltech/ovro-alert"
+
+[tool.setuptools]
+packages = ["ovro_alert"]
+zip-safe = false
+
+[tool.setuptools_scm]
+version_scheme = "post-release"
+local_scheme = "no-local-version"
