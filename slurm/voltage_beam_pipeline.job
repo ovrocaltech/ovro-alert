@@ -11,10 +11,11 @@
 ## SBATCH --partition=YOUR_PARTITION
 
 # Fill at runtime via environment (recommended):
-#   dm — required. time — optional seconds for run_pipeline.py --duration:
+#   dm — required. time — optional seconds for HDF5 conversion duration (via metadata):
 #     unset — derived from dm (alert auto-pick; same delay bound as lwa_alert_client)
 #     0     — search the full combined PSRFITS span (all segments)
 #     N>0   — keep only the first N seconds in the HDF5/search
+#   VOLTAGE_BEAM_RA / VOLTAGE_BEAM_DEC — required target position in degrees (alert exports position).
 #   filename — optional explicit path (manual submit_voltage_beam_file.sh). Alert-driven sbatch
 #   does not set filename; it exports VOLTAGE_BEAM_WINDOW_END_EPOCH + VOLTAGE_BEAM_LOOKBACK_MIN.
 #   If filename is unset, pick under VOLTAGE_BEAM_SEARCH_DIR:
@@ -126,6 +127,10 @@ export LIBRARY_PATH=/opt/devel/pipeline/envs/fasttransients/lib64:${LIBRARY_PATH
 export LD_LIBRARY_PATH=/opt/devel/pipeline/envs/fasttransients/lib64:${LD_LIBRARY_PATH:-}
 export PYTHONPATH=/opt/devel/nkosogor/nkosogor:${PYTHONPATH:-}
 
+LWA_FT_ROOT="${LWA_FT_ROOT:-/home/pipeline/proj/lwa-fasttransients}"
+LWA_FT_SRC="${LWA_FT_ROOT}/src"
+export PYTHONPATH="${LWA_FT_SRC}:${PYTHONPATH}"
+
 # Make caches writable under Slurm (fixes lsl config/data cache warnings).
 # Hypothesis A: lsl fails because $HOME/.cache or related dirs are not writable.
 cache_root="${SLURM_TMPDIR:-/tmp}/ovro_alert_${SLURM_JOB_ID:-nojob}"
@@ -139,9 +144,9 @@ export MPLCONFIGDIR="${cache_root}/mpl"
 mkdir -p "${HOME}/.lsl"
 chmod 700 "${HOME}/.lsl" || true
 
-# Pipeline code lives here; processing runs under /fast (node-local).
-pipeline_dir="/home/pipeline/proj/lwa-fasttransients/frb_search_pipeline"
-run_pipeline_py="${pipeline_dir}/run_pipeline.py"
+# Pipeline code lives under lwa-fasttransients/src; processing runs under /fast (node-local).
+prepare_metadata_py="${LWA_FT_SRC}/prepare_metadata.py"
+pipeline_py="${LWA_FT_SRC}/pipeline.py"
 
 # Use a per-job workdir under /fast to keep processing local.
 workdir="/fast/pipeline/fast/voltage_beam_${SLURM_JOB_ID:-nojob}"
@@ -156,11 +161,25 @@ fi
 
 cd "${workdir}"
 
-python "${run_pipeline_py}" \
-    --voltage "${filename_base}" \
+: "${VOLTAGE_BEAM_RA:?Set VOLTAGE_BEAM_RA (degrees)}"
+: "${VOLTAGE_BEAM_DEC:?Set VOLTAGE_BEAM_DEC (degrees)}"
+lo_dm="${VOLTAGE_BEAM_LO_DM:-$(python3 -c "print(max(0.0, float('${dm}') - 50.0))")}"
+hi_dm="${VOLTAGE_BEAM_HI_DM:-$(python3 -c "print(float('${dm}') + 50.0)")}"
+metadata_json="${workdir}/metadata.json"
+checkpoint_json="${workdir}/checkpoint.json"
+
+echo "Pipeline target: RA=${VOLTAGE_BEAM_RA} Dec=${VOLTAGE_BEAM_DEC} lo_dm=${lo_dm} hi_dm=${hi_dm} lwa_fasttransients=${LWA_FT_ROOT}"
+
+python "${prepare_metadata_py}" \
+    --file_name "${filename_base}" \
+    --ra "${VOLTAGE_BEAM_RA}" \
+    --dec "${VOLTAGE_BEAM_DEC}" \
     --dm "${dm}" \
-    --duration "${duration_sec}" \
-    --workdir "${workdir}"
+    --lo_dm "${lo_dm}" \
+    --hi_dm "${hi_dm}" \
+    --json_file "${metadata_json}"
+
+python "${pipeline_py}" "${metadata_json}" "${checkpoint_json}"
 
 # Drop the staged raw voltage file to reduce product size.
 # (This removes only the copy in the per-job workdir, not the original under the beam search dir.)

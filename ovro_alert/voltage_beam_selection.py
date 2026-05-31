@@ -57,6 +57,8 @@ def sbatch_voltage_beam_exports(
     lookback_min=None,  # type: Optional[int]
     filename=None,  # type: Optional[str]
     search_dir=None,  # type: Optional[str]
+    ra=None,  # type: Optional[float]
+    dec=None,  # type: Optional[float]
 ):
     # type: (float, float, ...) -> str
     """Build the ``--export=`` body for ``voltage_beam_pipeline.job`` (without ``ALL,`` prefix).
@@ -91,6 +93,10 @@ def sbatch_voltage_beam_exports(
         parts.append("VOLTAGE_BEAM_LOOKBACK_MIN={0}".format(lb))
     if explicit_time_sec is not None:
         parts.append("time={0}".format(float(explicit_time_sec)))
+    if ra is not None:
+        parts.append("VOLTAGE_BEAM_RA={0}".format(float(ra)))
+    if dec is not None:
+        parts.append("VOLTAGE_BEAM_DEC={0}".format(float(dec)))
     return ",".join(parts)
 
 

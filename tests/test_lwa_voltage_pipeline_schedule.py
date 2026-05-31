@@ -67,6 +67,8 @@ def test_schedule_voltage_beam_pipeline_exports_mtime_window_not_filename(
     assert f"VOLTAGE_BEAM_WINDOW_END_EPOCH={end}" in body
     assert f"VOLTAGE_BEAM_LOOKBACK_MIN={lb}" in body
     assert f"VOLTAGE_BEAM_SEARCH_DIR={beam_dir.resolve()}" in body
+    assert "VOLTAGE_BEAM_RA=10.0" in body
+    assert "VOLTAGE_BEAM_DEC=20.0" in body
     assert argv[4] == str(fake_job)
 
 

@@ -227,7 +227,7 @@ class LWAAlertClient(AlertClient):
         if 'dm' not in dd:
             logger.warning(
                 "Skipping voltage beam pipeline Slurm job: dm missing from alert args "
-                "(required for run_pipeline.py export)."
+                "(required for voltage beam pipeline export)."
             )
             return
 
@@ -242,11 +242,16 @@ class LWAAlertClient(AlertClient):
 
         schedule_unix = time.time()
         explicit_time = float(duration_sec) if "duration" in dd else None
+        position = dd.get("position", "0,0").split(",")
+        ra = float(position[0])
+        dec = float(position[1])
         export_body = sbatch_voltage_beam_exports(
             float(dd["dm"]),
             float(duration_sec),
             schedule_unix=schedule_unix,
             explicit_time_sec=explicit_time,
+            ra=ra,
+            dec=dec,
         )
         export = f"ALL,{export_body}"
         end_sec, lookback_min, start_sec = schedule_voltage_beam_window(schedule_unix, duration_sec)

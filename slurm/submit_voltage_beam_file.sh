@@ -2,18 +2,19 @@
 # Submit the voltage beam Slurm pipeline for a specific raw voltage file.
 # You do not need to export any variables: dm and filename are passed via sbatch --export.
 # TIME_SECONDS is optional; if omitted, exports time=0 (search the full voltage/PSRFITS span).
-# Pass a positive value to cap the HDF5/search window (same as run_pipeline.py --duration).
+# Pass a positive value to cap the HDF5/search window (same as pipeline conversion duration).
+# RA and DEC (degrees) are optional positional args after TIME_SECONDS, or set VOLTAGE_BEAM_RA/DEC.
 # Optional overrides: OVRO_ALERT_VOLTAGE_BEAM_JOB, --job.
 #
 # Usage:
-#   submit_voltage_beam_file.sh [--begin WHEN] [--job PATH] VOLTAGE_FILE DM [TIME_SECONDS]
+#   submit_voltage_beam_file.sh [--begin WHEN] [--job PATH] VOLTAGE_FILE DM [TIME_SECONDS] [RA [DEC]]
 #   submit_voltage_beam_file.sh ... -- EXTRA_SBATCH_ARGS...
 #
 # Examples:
 #   ./slurm/submit_voltage_beam_file.sh /lustre/ubuntu/beam01/foo.raw 87.3
 #   ./slurm/submit_voltage_beam_file.sh /lustre/ubuntu/beam01/foo.raw 87.3 300
 #   ./slurm/submit_voltage_beam_file.sh --begin=now+1hour /path/to/file.raw 120 600
-#   ./slurm/submit_voltage_beam_file.sh /path/to/file.raw 50 120 -- --mail-type=END
+#   ./slurm/submit_voltage_beam_file.sh /lustre/ubuntu/beam01/foo.raw 87.3 300 83.6 22.0
 #
 # Override job script path (same idea as OVRO_ALERT_VOLTAGE_BEAM_JOB in Python):
 #   OVRO_ALERT_VOLTAGE_BEAM_JOB=/other/voltage_beam_pipeline.job ./slurm/submit_voltage_beam_file.sh ...
@@ -84,6 +85,8 @@ if [[ $# -ge 3 ]]; then
 else
   TIME_SEC="0"
 fi
+RA="${4:-${VOLTAGE_BEAM_RA:-}}"
+DEC="${5:-${VOLTAGE_BEAM_DEC:-}}"
 
 if [[ ! -f "$VOLTAGE_FILE" ]]; then
   echo "Not a regular file: ${VOLTAGE_FILE}" >&2
@@ -110,6 +113,12 @@ fi
 # VOLTAGE_BEAM_* tuning vars so a submitter shell (e.g. VOLTAGE_BEAM_LOOKBACK_MIN=8
 # from testing) cannot leak into the batch step and break unrelated logic.
 _submit_export="ALL,dm=${DM},filename=${VOLTAGE_FILE},time=${TIME_SEC}"
+if [[ -n "${RA}" ]]; then
+  _submit_export+=",VOLTAGE_BEAM_RA=${RA}"
+fi
+if [[ -n "${DEC}" ]]; then
+  _submit_export+=",VOLTAGE_BEAM_DEC=${DEC}"
+fi
 _submit_export+=",VOLTAGE_BEAM_WINDOW_END_EPOCH="
 _submit_export+=",VOLTAGE_BEAM_LOOKBACK_MIN=120"
 
