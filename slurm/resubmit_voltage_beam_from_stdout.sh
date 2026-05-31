@@ -9,6 +9,8 @@
 #   resubmit_voltage_beam_from_stdout.sh --window-end=1700005000 --lookback-min=34 job.out
 #   resubmit_voltage_beam_from_stdout.sh --filename=/lustre/ubuntu/beam01/foo.raw job.out
 #   resubmit_voltage_beam_from_stdout.sh --window-now job.out
+#   resubmit_voltage_beam_from_stdout.sh --no-resume job.out
+#   resubmit_voltage_beam_from_stdout.sh --resume-from=/fast/pipeline/fast/voltage_beam_123 job.out
 #   resubmit_voltage_beam_from_stdout.sh --dry-run job.out
 #
 # Options:
@@ -16,12 +18,15 @@
 #   --lookback-min MIN    VOLTAGE_BEAM_LOOKBACK_MIN (window start = end - MIN*60)
 #   --filename PATH       Pin voltage file; skip mtime window pick
 #   --window-now          Anchor window to resubmit time (not for late retries)
+#   --resume-from PATH    Reuse checkpoint/artifacts from a prior job directory
+#   --no-resume           Do not auto-detect prior artifacts from the stdout log
 #   --begin WHEN          sbatch --begin (default: now)
 #   --job PATH            batch script path
 #   --dry-run             print sbatch command only
 #
 # Environment (optional):
 #   OVRO_ALERT_VOLTAGE_BEAM_JOB, OVRO_ALERT_VOLTAGE_PIPELINE_NODELIST
+#   VOLTAGE_BEAM_RA, VOLTAGE_BEAM_DEC — override when stdout lacks Pipeline target line
 
 set -euo pipefail
 
@@ -36,6 +41,8 @@ WINDOW_NOW=0
 WINDOW_END=""
 LOOKBACK_MIN=""
 FILENAME=""
+RESUME_FROM=""
+NO_RESUME=0
 EXTRA=()
 
 while [[ $# -gt 0 ]]; do
@@ -88,6 +95,18 @@ while [[ $# -gt 0 ]]; do
       WINDOW_NOW=1
       shift
       ;;
+    --resume-from=*)
+      RESUME_FROM="${1#*=}"
+      shift
+      ;;
+    --resume-from)
+      RESUME_FROM="${2:?--resume-from requires an argument}"
+      shift 2
+      ;;
+    --no-resume)
+      NO_RESUME=1
+      shift
+      ;;
     --dry-run)
       DRY_RUN=1
       shift
@@ -131,37 +150,61 @@ fi
 
 _REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-read -r DM DURATION_SEC EXPORT_BODY < <(
+read -r DM DURATION_SEC EXPORT_BODY RESUME_DIR RESUME_NOTE < <(
   python3 - "${STDOUT_FILE}" "${_REPO_ROOT}" "${WINDOW_END}" "${LOOKBACK_MIN}" \
-    "${FILENAME}" "${WINDOW_NOW}" <<'PY'
+    "${FILENAME}" "${WINDOW_NOW}" "${RESUME_FROM}" "${NO_RESUME}" <<'PY'
+import os
 import sys
 from pathlib import Path
 
 repo = Path(sys.argv[2])
 sys.path.insert(0, str(repo))
-from ovro_alert.voltage_beam_selection import build_resubmit_export
+from ovro_alert.voltage_beam_selection import (
+    _checkpoint_summary,
+    build_resubmit_export,
+)
 
 stdout_path = Path(sys.argv[1])
 window_end = sys.argv[3].strip() or None
 lookback = sys.argv[4].strip() or None
 filename = sys.argv[5].strip() or None
 window_now = sys.argv[6].strip() == "1"
+resume_from = sys.argv[7].strip() or None
+no_resume = sys.argv[8].strip() == "1"
+
+ra = os.environ.get("VOLTAGE_BEAM_RA")
+dec = os.environ.get("VOLTAGE_BEAM_DEC")
+ra = float(ra) if ra else None
+dec = float(dec) if dec else None
 
 content = stdout_path.read_text()
-dm, duration_sec, export_body = build_resubmit_export(
+dm, duration_sec, export_body, resume_dir = build_resubmit_export(
     content,
     filename=filename,
     window_end_epoch=int(window_end) if window_end else None,
     lookback_min=int(lookback) if lookback else None,
     window_now=window_now,
+    ra=ra,
+    dec=dec,
+    stdout_path=str(stdout_path),
+    resume_from=resume_from,
+    no_resume=no_resume,
 )
-print("{0}\t{1}\t{2}".format(dm, duration_sec, export_body))
+resume_note = ""
+if resume_dir:
+    resume_note = _checkpoint_summary(Path(resume_dir) / "checkpoint.json")
+print("{0}\t{1}\t{2}\t{3}\t{4}".format(
+    dm, duration_sec, export_body, resume_dir or "", resume_note
+))
 PY
 )
 
 NODELIST="${OVRO_ALERT_VOLTAGE_PIPELINE_NODELIST:-lwacalim02}"
 
 echo "Parsed from ${STDOUT_FILE}: dm=${DM} duration_sec=${DURATION_SEC}" >&2
+if [[ -n "${RESUME_DIR}" ]]; then
+  echo "Resume artifacts: ${RESUME_DIR} (${RESUME_NOTE:-})" >&2
+fi
 echo "sbatch export: ${EXPORT_BODY}" >&2
 
 SBATCH_CMD=(

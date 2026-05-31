@@ -5,6 +5,8 @@ import pytest
 from ovro_alert.voltage_beam_selection import (
     build_resubmit_export,
     historical_window_from_job_log,
+    locate_prior_job_artifacts,
+    parse_slurm_job_id_from_stdout_path,
     parse_voltage_beam_job_log,
     parse_voltage_beam_slurm_stdout,
 )
@@ -54,34 +56,46 @@ Pipeline parameters: dm=10 duration_sec=600 (from dm ...)
     assert lb == 16
 
 
+def _sample_log(*extra_lines):
+    lines = [
+        "Pipeline env: dm=87.3 time=300 filename=<auto> "
+        "VOLTAGE_BEAM_WINDOW_END_EPOCH=1700000480 VOLTAGE_BEAM_LOOKBACK_MIN=11 "
+        "search_dir=/lustre/ubuntu/beam01",
+        "Pipeline parameters: dm=87.3 duration_sec=300 (from exported time (seconds))",
+        "Pipeline target: RA=83.6 Dec=22.0 lo_dm=37.3 hi_dm=137.3 lwa_fasttransients=/home/pipeline/proj/lwa-fasttransients",
+    ]
+    if extra_lines:
+        lines = list(extra_lines)
+    return "\n".join(lines) + "\n"
+
+
 def test_build_resubmit_reuses_original_window():
-    text = """\
-Pipeline env: dm=87.3 time=300 filename=<auto> VOLTAGE_BEAM_WINDOW_END_EPOCH=1700000480 VOLTAGE_BEAM_LOOKBACK_MIN=11 search_dir=/lustre/ubuntu/beam01
-Pipeline parameters: dm=87.3 duration_sec=300 (from exported time (seconds))
-"""
-    _, _, export = build_resubmit_export(text)
+    text = _sample_log()
+    _, _, export, resume_dir = build_resubmit_export(text)
+    assert resume_dir is None
     assert "VOLTAGE_BEAM_WINDOW_END_EPOCH=1700000480" in export
     assert "VOLTAGE_BEAM_LOOKBACK_MIN=11" in export
     assert "time=300" in export
     assert "filename=" not in export
+    assert "VOLTAGE_BEAM_RA=83.6" in export
+    assert "VOLTAGE_BEAM_DEC=22.0" in export
 
 
 def test_build_resubmit_window_now_uses_no_historical_epoch():
-    text = """\
-Pipeline env: dm=87.3 time=300 filename=<auto> VOLTAGE_BEAM_WINDOW_END_EPOCH=1700000480 VOLTAGE_BEAM_LOOKBACK_MIN=11 search_dir=/lustre/ubuntu/beam01
-Pipeline parameters: dm=87.3 duration_sec=300 (from exported time (seconds))
-"""
-    _, _, export = build_resubmit_export(text, window_now=True)
+    text = _sample_log()
+    _, _, export, _ = build_resubmit_export(text, window_now=True)
     assert "VOLTAGE_BEAM_WINDOW_END_EPOCH=1700000480" not in export
     assert "VOLTAGE_BEAM_WINDOW_END_EPOCH=" in export
 
 
 def test_build_resubmit_explicit_filename():
-    text = """\
-Pipeline env: dm=1 time=10 filename=<auto> VOLTAGE_BEAM_WINDOW_END_EPOCH=99 VOLTAGE_BEAM_LOOKBACK_MIN=5 search_dir=/lustre/ubuntu/beam01
-Pipeline parameters: dm=1 duration_sec=10 (x)
-"""
-    _, _, export = build_resubmit_export(
+    text = _sample_log(
+        "Pipeline env: dm=1 time=10 filename=<auto> VOLTAGE_BEAM_WINDOW_END_EPOCH=99 "
+        "VOLTAGE_BEAM_LOOKBACK_MIN=5 search_dir=/lustre/ubuntu/beam01",
+        "Pipeline parameters: dm=1 duration_sec=10 (x)",
+        "Pipeline target: RA=10.0 Dec=20.0 lo_dm=0.0 hi_dm=51.0 lwa_fasttransients=/home/pipeline/proj/lwa-fasttransients",
+    )
+    _, _, export, _ = build_resubmit_export(
         text, filename="/lustre/ubuntu/beam01/pinned.raw"
     )
     assert "filename=/lustre/ubuntu/beam01/pinned.raw" in export
@@ -89,15 +103,105 @@ Pipeline parameters: dm=1 duration_sec=10 (x)
 
 
 def test_build_resubmit_cli_window_override():
-    text = """\
-Pipeline env: dm=1 time=10 filename=<auto> VOLTAGE_BEAM_WINDOW_END_EPOCH=99 VOLTAGE_BEAM_LOOKBACK_MIN=5 search_dir=/lustre/ubuntu/beam01
-Pipeline parameters: dm=1 duration_sec=10 (x)
-"""
-    _, _, export = build_resubmit_export(
+    text = _sample_log(
+        "Pipeline env: dm=1 time=10 filename=<auto> VOLTAGE_BEAM_WINDOW_END_EPOCH=99 "
+        "VOLTAGE_BEAM_LOOKBACK_MIN=5 search_dir=/lustre/ubuntu/beam01",
+        "Pipeline parameters: dm=1 duration_sec=10 (x)",
+        "Pipeline target: RA=1.0 Dec=2.0 lo_dm=0.0 hi_dm=51.0 lwa_fasttransients=/home/pipeline/proj/lwa-fasttransients",
+    )
+    _, _, export, _ = build_resubmit_export(
         text, window_end_epoch=2000000000, lookback_min=60
     )
     assert "VOLTAGE_BEAM_WINDOW_END_EPOCH=2000000000" in export
     assert "VOLTAGE_BEAM_LOOKBACK_MIN=60" in export
+
+
+def test_parse_job_log_target_ra_dec():
+    text = """\
+Pipeline env: dm=57 time=0 filename=/lustre/ubuntu/beam01/foo.raw VOLTAGE_BEAM_WINDOW_END_EPOCH= VOLTAGE_BEAM_LOOKBACK_MIN=120 search_dir=/lustre/ubuntu/beam01
+Pipeline parameters: dm=57 duration_sec=0 (full combined PSRFITS span (time=0))
+Pipeline target: RA=180.0 Dec=-30.5 lo_dm=7.0 hi_dm=107.0 lwa_fasttransients=/home/pipeline/proj/lwa-fasttransients
+"""
+    meta = parse_voltage_beam_job_log(text)
+    assert meta["ra"] == 180.0
+    assert meta["dec"] == pytest.approx(-30.5)
+
+
+def test_build_resubmit_missing_ra_dec_raises():
+    text = """\
+Pipeline env: dm=87.3 time=300 filename=<auto> VOLTAGE_BEAM_WINDOW_END_EPOCH=1700000480 VOLTAGE_BEAM_LOOKBACK_MIN=11 search_dir=/lustre/ubuntu/beam01
+Pipeline parameters: dm=87.3 duration_sec=300 (from exported time (seconds))
+"""
+    with pytest.raises(ValueError, match="VOLTAGE_BEAM_RA/DEC"):
+        build_resubmit_export(text)
+
+
+def test_build_resubmit_env_ra_dec_override():
+    text = """\
+Pipeline env: dm=87.3 time=300 filename=<auto> VOLTAGE_BEAM_WINDOW_END_EPOCH=1700000480 VOLTAGE_BEAM_LOOKBACK_MIN=11 search_dir=/lustre/ubuntu/beam01
+Pipeline parameters: dm=87.3 duration_sec=300 (from exported time (seconds))
+"""
+    _, _, export, _ = build_resubmit_export(text, ra=12.5, dec=-3.25)
+    assert "VOLTAGE_BEAM_RA=12.5" in export
+    assert "VOLTAGE_BEAM_DEC=-3.25" in export
+
+
+def test_parse_slurm_job_id_from_stdout_path():
+    assert parse_slurm_job_id_from_stdout_path("/home/pipeline/slurm/voltage_beam_pipeline-4242.out") == 4242
+    assert parse_slurm_job_id_from_stdout_path("job.out") is None
+
+
+def test_locate_prior_job_artifacts_from_moved_products(tmp_path):
+    product = tmp_path / "voltage_beam_99"
+    product.mkdir()
+    (product / "checkpoint.json").write_text('{"conversion_done": true}')
+    text = _sample_log("Moved products to {0}".format(product))
+    found = locate_prior_job_artifacts(text, stdout_path="voltage_beam_pipeline-99.out")
+    assert found == str(product.resolve())
+
+
+def test_locate_prior_job_artifacts_from_fast_workdir(tmp_path, monkeypatch):
+    fast_root = tmp_path / "fast"
+    work = fast_root / "voltage_beam_55"
+    work.mkdir(parents=True)
+    (work / "checkpoint.json").write_text('{"conversion_done": true}')
+    monkeypatch.setenv("VOLTAGE_BEAM_FAST_ROOT", str(fast_root))
+    text = _sample_log()
+    found = locate_prior_job_artifacts(
+        text,
+        stdout_path=str(tmp_path / "voltage_beam_pipeline-55.out"),
+        product_root=str(tmp_path / "lustre"),
+    )
+    assert found == str(work.resolve())
+
+
+def test_build_resubmit_exports_resume_from(tmp_path):
+    product = tmp_path / "voltage_beam_12"
+    product.mkdir()
+    (product / "checkpoint.json").write_text(
+        '{"conversion_done": true, "output_filenames": {"fil_file_name": "x.fil"}}'
+    )
+    text = _sample_log() + "Moved products to {0}\n".format(product)
+    _, _, export, resume_dir = build_resubmit_export(
+        text,
+        stdout_path=str(tmp_path / "voltage_beam_pipeline-12.out"),
+    )
+    assert resume_dir == str(product.resolve())
+    assert "VOLTAGE_BEAM_RESUME_FROM={0}".format(product.resolve()) in export
+
+
+def test_build_resubmit_no_resume_skips_artifacts(tmp_path):
+    product = tmp_path / "voltage_beam_12"
+    product.mkdir()
+    (product / "checkpoint.json").write_text('{"conversion_done": true}')
+    text = _sample_log() + "Moved products to {0}\n".format(product)
+    _, _, export, resume_dir = build_resubmit_export(
+        text,
+        stdout_path=str(tmp_path / "voltage_beam_pipeline-12.out"),
+        no_resume=True,
+    )
+    assert resume_dir is None
+    assert "VOLTAGE_BEAM_RESUME_FROM=" not in export
 
 
 def test_parse_falls_back_to_env_time_without_parameters_line():

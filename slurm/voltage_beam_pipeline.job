@@ -16,6 +16,7 @@
 #     0     — search the full combined PSRFITS span (all segments)
 #     N>0   — keep only the first N seconds in the HDF5/search
 #   VOLTAGE_BEAM_RA / VOLTAGE_BEAM_DEC — required target position in degrees (alert exports position).
+#   VOLTAGE_BEAM_RESUME_FROM — optional path to a prior job dir with checkpoint.json (resubmit reuse).
 #   filename — optional explicit path (manual submit_voltage_beam_file.sh). Alert-driven sbatch
 #   does not set filename; it exports VOLTAGE_BEAM_WINDOW_END_EPOCH + VOLTAGE_BEAM_LOOKBACK_MIN.
 #   If filename is unset, pick under VOLTAGE_BEAM_SEARCH_DIR:
@@ -151,6 +152,23 @@ pipeline_py="${LWA_FT_SRC}/pipeline.py"
 # Use a per-job workdir under /fast to keep processing local.
 workdir="/fast/pipeline/fast/voltage_beam_${SLURM_JOB_ID:-nojob}"
 mkdir -p "${workdir}"
+
+if [[ -n "${VOLTAGE_BEAM_RESUME_FROM:-}" ]]; then
+  if [[ ! -f "${VOLTAGE_BEAM_RESUME_FROM}/checkpoint.json" ]]; then
+    echo "WARNING: VOLTAGE_BEAM_RESUME_FROM=${VOLTAGE_BEAM_RESUME_FROM} has no checkpoint.json; ignoring resume" >&2
+  else
+    echo "Pipeline resume: copying artifacts from ${VOLTAGE_BEAM_RESUME_FROM}"
+    shopt -s dotglob nullglob
+    for _item in "${VOLTAGE_BEAM_RESUME_FROM}"/*; do
+      _base="$(basename -- "${_item}")"
+      if [[ "${_base}" == "${filename_base}" ]]; then
+        continue
+      fi
+      cp -a "${_item}" "${workdir}/"
+    done
+    shopt -u dotglob nullglob
+  fi
+fi
 
 dst="${workdir}/${filename_base}"
 if [[ -f "${dst}" ]]; then
