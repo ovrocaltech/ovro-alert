@@ -148,6 +148,14 @@ if [[ -f "${_legacy_hdf5}" ]] && grep -q '^import data as hdfData' "${_legacy_hd
   echo "WARNING: legacy ${_legacy_hdf5} still has 'import data' — use src/pipeline.py (this job does)." >&2
 fi
 
+# Register the src tree as an installed package (robust imports for conversion.*).
+PYTHON_BIN="$(command -v python)"
+if ! "${PYTHON_BIN}" -c "from conversion import data" 2>/dev/null; then
+  echo "Installing lwa-fasttransients editable from ${LWA_FT_ROOT} ..."
+  (cd "${LWA_FT_ROOT}" && "${PYTHON_BIN}" -m pip install -e . --no-deps -q)
+fi
+export PYTHONPATH="${LWA_FT_SRC}:${PYTHONPATH}"
+
 # Make caches writable under Slurm (fixes lsl config/data cache warnings).
 # Hypothesis A: lsl fails because $HOME/.cache or related dirs are not writable.
 cache_root="${SLURM_TMPDIR:-/tmp}/ovro_alert_${SLURM_JOB_ID:-nojob}"
@@ -164,10 +172,15 @@ chmod 700 "${HOME}/.lsl" || true
 # Pipeline code lives under lwa-fasttransients/src; processing runs under /fast (node-local).
 prepare_metadata_py="${LWA_FT_SRC}/prepare_metadata.py"
 pipeline_py="${_pipeline_py}"
-PYTHON_BIN="$(command -v python)"
 
 echo "lwa-fasttransients: root=${LWA_FT_ROOT} src=${LWA_FT_SRC} python=${PYTHON_BIN}"
-"${PYTHON_BIN}" -c "from conversion import data as hdfData; print('conversion.data OK:', hasattr(hdfData, 'create_new_file'))"
+"${PYTHON_BIN}" -c "
+import os, sys
+print('PYTHONPATH=', os.environ.get('PYTHONPATH', ''))
+print('sys.path[0:3]=', sys.path[0:3])
+from conversion import data as hdfData
+print('conversion.data OK:', hasattr(hdfData, 'create_new_file'))
+"
 
 # Use a per-job workdir under /fast to keep processing local.
 workdir="/fast/pipeline/fast/voltage_beam_${SLURM_JOB_ID:-nojob}"
