@@ -57,7 +57,7 @@ _pick_newest_voltage_file_from_candidates() {
 }
 
 # Log before file pick: on "no file" we exit 1 below and would otherwise never reach dm/duration echo.
-echo "Pipeline env: dm=${dm:-<unset>} time=${time:-<derive from dm>} filename=${filename:-<auto>} VOLTAGE_BEAM_WINDOW_END_EPOCH=${VOLTAGE_BEAM_WINDOW_END_EPOCH:-<unset>} VOLTAGE_BEAM_LOOKBACK_MIN=${VOLTAGE_BEAM_LOOKBACK_MIN} search_dir=${VOLTAGE_BEAM_SEARCH_DIR}"
+echo "Pipeline env: dm=${dm:-<unset>} time=${time:-<derive from dm>} filename=${filename:-<auto>} VOLTAGE_BEAM_RA=${VOLTAGE_BEAM_RA:-<unset>} VOLTAGE_BEAM_DEC=${VOLTAGE_BEAM_DEC:-<unset>} VOLTAGE_BEAM_WINDOW_END_EPOCH=${VOLTAGE_BEAM_WINDOW_END_EPOCH:-<unset>} VOLTAGE_BEAM_LOOKBACK_MIN=${VOLTAGE_BEAM_LOOKBACK_MIN} search_dir=${VOLTAGE_BEAM_SEARCH_DIR}"
 
 if [[ -z "${filename:-}" ]]; then
   filename=""
@@ -131,6 +131,22 @@ export PYTHONPATH=/opt/devel/nkosogor/nkosogor:${PYTHONPATH:-}
 LWA_FT_ROOT="${LWA_FT_ROOT:-/home/pipeline/proj/lwa-fasttransients}"
 LWA_FT_SRC="${LWA_FT_ROOT}/src"
 export PYTHONPATH="${LWA_FT_SRC}:${PYTHONPATH}"
+export LWA_FT_ROOT LWA_FT_SRC
+
+# Legacy layout on the cluster used frb_search_pipeline/write_hdf5_from_psrfits.py (import data).
+_legacy_hdf5="${LWA_FT_ROOT}/frb_search_pipeline/write_hdf5_from_psrfits.py"
+_pipeline_py="${LWA_FT_SRC}/pipeline.py"
+_hdf5_py="${LWA_FT_SRC}/conversion/writeHDF5FromPsrfits.py"
+if [[ ! -f "${_pipeline_py}" ]] || [[ ! -f "${_hdf5_py}" ]]; then
+  echo "ERROR: lwa-fasttransients src layout not found under ${LWA_FT_SRC}" >&2
+  echo "  expected: ${_pipeline_py}" >&2
+  echo "  expected: ${_hdf5_py}" >&2
+  echo "  Run: cd ${LWA_FT_ROOT} && git pull" >&2
+  exit 1
+fi
+if [[ -f "${_legacy_hdf5}" ]] && grep -q '^import data as hdfData' "${_legacy_hdf5}" 2>/dev/null; then
+  echo "WARNING: legacy ${_legacy_hdf5} still has 'import data' — use src/pipeline.py (this job does)." >&2
+fi
 
 # Make caches writable under Slurm (fixes lsl config/data cache warnings).
 # Hypothesis A: lsl fails because $HOME/.cache or related dirs are not writable.
@@ -147,7 +163,11 @@ chmod 700 "${HOME}/.lsl" || true
 
 # Pipeline code lives under lwa-fasttransients/src; processing runs under /fast (node-local).
 prepare_metadata_py="${LWA_FT_SRC}/prepare_metadata.py"
-pipeline_py="${LWA_FT_SRC}/pipeline.py"
+pipeline_py="${_pipeline_py}"
+PYTHON_BIN="$(command -v python)"
+
+echo "lwa-fasttransients: root=${LWA_FT_ROOT} src=${LWA_FT_SRC} python=${PYTHON_BIN}"
+"${PYTHON_BIN}" -c "from conversion import data as hdfData; print('conversion.data OK:', hasattr(hdfData, 'create_new_file'))"
 
 # Use a per-job workdir under /fast to keep processing local.
 workdir="/fast/pipeline/fast/voltage_beam_${SLURM_JOB_ID:-nojob}"
@@ -188,7 +208,7 @@ checkpoint_json="${workdir}/checkpoint.json"
 
 echo "Pipeline target: RA=${VOLTAGE_BEAM_RA} Dec=${VOLTAGE_BEAM_DEC} lo_dm=${lo_dm} hi_dm=${hi_dm} lwa_fasttransients=${LWA_FT_ROOT}"
 
-python "${prepare_metadata_py}" \
+"${PYTHON_BIN}" "${prepare_metadata_py}" \
     --file_name "${filename_base}" \
     --ra "${VOLTAGE_BEAM_RA}" \
     --dec "${VOLTAGE_BEAM_DEC}" \
@@ -197,7 +217,7 @@ python "${prepare_metadata_py}" \
     --hi_dm "${hi_dm}" \
     --json_file "${metadata_json}"
 
-python "${pipeline_py}" "${metadata_json}" "${checkpoint_json}"
+"${PYTHON_BIN}" "${pipeline_py}" "${metadata_json}" "${checkpoint_json}"
 
 # Drop the staged raw voltage file to reduce product size.
 # (This removes only the copy in the per-job workdir, not the original under the beam search dir.)

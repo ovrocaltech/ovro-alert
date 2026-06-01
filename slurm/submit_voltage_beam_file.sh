@@ -7,13 +7,18 @@
 # Optional overrides: OVRO_ALERT_VOLTAGE_BEAM_JOB, --job.
 #
 # Usage:
-#   submit_voltage_beam_file.sh [--begin WHEN] [--job PATH] VOLTAGE_FILE DM [TIME_SECONDS] [RA [DEC]]
+#   submit_voltage_beam_file.sh [--begin WHEN] [--job PATH] VOLTAGE_FILE DM [ARGS...]
+#   ARGS after DM (pick one form):
+#     (none)              — time=0; RA/DEC from VOLTAGE_BEAM_RA/DEC if set
+#     TIME                — one number: duration in seconds
+#     RA DEC              — two numbers: sky position (degrees), time=0
+#     TIME RA DEC         — three numbers: duration then position
 #   submit_voltage_beam_file.sh ... -- EXTRA_SBATCH_ARGS...
 #
 # Examples:
 #   ./slurm/submit_voltage_beam_file.sh /lustre/ubuntu/beam01/foo.raw 87.3
 #   ./slurm/submit_voltage_beam_file.sh /lustre/ubuntu/beam01/foo.raw 87.3 300
-#   ./slurm/submit_voltage_beam_file.sh --begin=now+1hour /path/to/file.raw 120 600
+#   ./slurm/submit_voltage_beam_file.sh /lustre/ubuntu/beam01/foo.raw 57.1 83.6 22.0
 #   ./slurm/submit_voltage_beam_file.sh /lustre/ubuntu/beam01/foo.raw 87.3 300 83.6 22.0
 #
 # Override job script path (same idea as OVRO_ALERT_VOLTAGE_BEAM_JOB in Python):
@@ -73,20 +78,37 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ $# -lt 2 ]]; then
-  echo "Expected: VOLTAGE_FILE DM [TIME_SECONDS]" >&2
+  echo "Expected: VOLTAGE_FILE DM [TIME | RA DEC | TIME RA DEC]" >&2
   usage >&2
   exit 2
 fi
 
 VOLTAGE_FILE="$1"
 DM="$2"
-if [[ $# -ge 3 ]]; then
-  TIME_SEC="$3"
-else
-  TIME_SEC="0"
-fi
-RA="${4:-${VOLTAGE_BEAM_RA:-}}"
-DEC="${5:-${VOLTAGE_BEAM_DEC:-}}"
+shift 2
+
+TIME_SEC="0"
+RA="${VOLTAGE_BEAM_RA:-}"
+DEC="${VOLTAGE_BEAM_DEC:-}"
+
+case $# in
+  0) ;;
+  1) TIME_SEC="$1" ;;
+  2)
+    RA="$1"
+    DEC="$2"
+    ;;
+  3)
+    TIME_SEC="$1"
+    RA="$2"
+    DEC="$3"
+    ;;
+  *)
+    echo "Too many positional arguments after DM (expected at most TIME RA DEC)" >&2
+    usage >&2
+    exit 2
+    ;;
+esac
 
 if [[ ! -f "$VOLTAGE_FILE" ]]; then
   echo "Not a regular file: ${VOLTAGE_FILE}" >&2

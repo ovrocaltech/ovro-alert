@@ -116,6 +116,16 @@ def test_build_resubmit_cli_window_override():
     assert "VOLTAGE_BEAM_LOOKBACK_MIN=60" in export
 
 
+def test_parse_job_log_ra_dec_from_pipeline_env():
+    text = """\
+Pipeline env: dm=57.1 time=0 filename=/lustre/ubuntu/beam01/foo.raw VOLTAGE_BEAM_RA=83.6324 VOLTAGE_BEAM_DEC=22.0174 VOLTAGE_BEAM_WINDOW_END_EPOCH= VOLTAGE_BEAM_LOOKBACK_MIN=120 search_dir=/lustre/ubuntu/beam01
+Pipeline parameters: dm=57.1 duration_sec=0 (full combined PSRFITS span (time=0))
+"""
+    meta = parse_voltage_beam_job_log(text)
+    assert meta["ra"] == pytest.approx(83.6324)
+    assert meta["dec"] == pytest.approx(22.0174)
+
+
 def test_parse_job_log_target_ra_dec():
     text = """\
 Pipeline env: dm=57 time=0 filename=/lustre/ubuntu/beam01/foo.raw VOLTAGE_BEAM_WINDOW_END_EPOCH= VOLTAGE_BEAM_LOOKBACK_MIN=120 search_dir=/lustre/ubuntu/beam01
