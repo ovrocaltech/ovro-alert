@@ -137,11 +137,18 @@ export LWA_FT_ROOT LWA_FT_SRC
 _legacy_hdf5="${LWA_FT_ROOT}/frb_search_pipeline/write_hdf5_from_psrfits.py"
 _pipeline_py="${LWA_FT_SRC}/pipeline.py"
 _hdf5_py="${LWA_FT_SRC}/conversion/writeHDF5FromPsrfits.py"
-if [[ ! -f "${_pipeline_py}" ]] || [[ ! -f "${_hdf5_py}" ]]; then
+_hdf5_beam_data="${LWA_FT_SRC}/conversion/hdf5_beam_data.py"
+_data_py="${LWA_FT_SRC}/conversion/data.py"
+if [[ ! -f "${_pipeline_py}" ]] || [[ ! -f "${_hdf5_py}" ]] || [[ ! -f "${_hdf5_beam_data}" ]]; then
   echo "ERROR: lwa-fasttransients src layout not found under ${LWA_FT_SRC}" >&2
   echo "  expected: ${_pipeline_py}" >&2
   echo "  expected: ${_hdf5_py}" >&2
+  echo "  expected: ${_hdf5_beam_data}" >&2
   echo "  Run: cd ${LWA_FT_ROOT} && git pull" >&2
+  exit 1
+fi
+if grep -qE 'from _data import|from \._data import' "${_data_py}" 2>/dev/null; then
+  echo "ERROR: ${_data_py} still uses legacy 'from _data import' — git pull lwa-fasttransients (need hdf5_beam_data.py loader)" >&2
   exit 1
 fi
 if [[ -f "${_legacy_hdf5}" ]] && grep -q '^import data as hdfData' "${_legacy_hdf5}" 2>/dev/null; then
