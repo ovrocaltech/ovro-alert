@@ -3,6 +3,35 @@ Code and services for sending, receiving, and using astronomical alerts at OVRO.
 
 ![diagram of connections](drawio/diagram.drawio.png)
 
+## Python versions and deployment
+
+Two environments are intentional:
+
+| Environment | Typical host | Python | Install |
+|-------------|--------------|--------|---------|
+| **`deployment`** | Observing / calim (`LWAAlertClient`) | 3.6 | Cluster `mnc_python` env; **do not** `pip install -e .` this repo from `pyproject.toml` (requires **≥3.9**) |
+| **`fasttransients`** | **lwacalim02** (Slurm pipeline) | 3.9+ | `lwa-fasttransients/scripts/deploy_calim.sh` |
+
+**Observing host (voltage-beam scheduling only):** expose `frb_search_pipeline.slurm_schedule` via `PYTHONPATH`, not a modern editable `ovro-alert` install:
+
+```bash
+cd /home/pipeline/proj/ovro-alert
+./scripts/deploy_alert_client.sh
+```
+
+That activates `deployment`, sources `scripts/alert_client_env.sh` (sets `PYTHONPATH` to `lwa-fasttransients/src`), and runs import smoke tests (including `python3.6` when available).
+
+**Persist env for systemd / long-running clients:**
+
+```bash
+conda activate deployment
+source /home/pipeline/proj/ovro-alert/scripts/alert_client_env.sh
+```
+
+Reference only (do not `conda env create` on production): `environment-alert-client.yml`.
+
+**Relay / FastAPI (major):** use Python **≥3.9** and `pip install -e .` from this repo.
+
 ## Requirements
 - astropy
 - fastapi
@@ -42,9 +71,63 @@ As a low-frequency all-sky monitor, OVRO-LWA is well positioned to respond to fa
 - Trigger voltage buffer dump in response to LIGO NS merger events
 - Point a power beam at an FRB detected by CHIME or DSA-110
 
-The OVRO-LWA observing client is in this repo.
+The OVRO-LWA observing client is in this repo (`ovro_alert/lwa_alert_client.py`).
 
-### CHIME
+#### Voltage beam alert → Slurm FRB pipeline
+
+CHIME/CASM/DSA alerts call `submit_voltagebeam`, which queues an ASAP voltage beam SDF and submits `slurm/voltage_beam_pipeline.job` on **lwacalim02**. Processing uses **`lwa-fasttransients`** (`run_pipeline.py` via `lwa-voltage-beam run`), not the legacy `src/pipeline.py` path.
+
+**Deploy (lwacalim02, after `git pull` on pipeline code):**
+
+```bash
+conda activate fasttransients
+cd /home/pipeline/proj/lwa-fasttransients
+./scripts/deploy_calim.sh
+```
+
+**Deploy (observing host, `deployment` env):** after `git pull` on both repos:
+
+```bash
+cd /home/pipeline/proj/ovro-alert
+./scripts/deploy_alert_client.sh
+```
+
+Do **not** `pip install -e .` here — `pyproject.toml` requires Python ≥3.9. Scheduling uses `PYTHONPATH=${LWA_FT_ROOT}/src` (see `scripts/alert_client_env.sh`). `ovro_alert.voltage_beam_selection` re-exports `frb_search_pipeline.slurm_schedule`.
+
+**Manual submit / resubmit** (on a host with Slurm + `fasttransients`):
+
+```bash
+# Explicit raw file
+lwa-voltage-beam submit --file /lustre/ubuntu/beam01/foo.raw --dm 87.3 \
+  --duration 300 --ra 83.6 --dec 22.0
+
+# Resubmit from prior job stdout
+lwa-voltage-beam resubmit /home/pipeline/slurm/voltage_beam_pipeline-12345.out
+
+# Legacy shims (same commands)
+./slurm/submit_voltage_beam_file.sh /lustre/ubuntu/beam01/foo.raw 87.3 300 83.6 22.0
+./slurm/resubmit_voltage_beam_from_stdout.sh voltage_beam_pipeline-12345.out
+```
+
+**Alert scheduling:** Slurm `--begin` is `now + duration + 600s` (buffer), minimum 300 s lead. Ops override: `OVRO_ALERT_VOLTAGE_PIPELINE_BEGIN_DELAY=now+2hours`.
+
+**Useful environment variables:**
+
+| Variable | Where | Purpose |
+|----------|-------|---------|
+| `OVRO_ALERT_VOLTAGE_BEAM_JOB` | client | Path to `voltage_beam_pipeline.job` |
+| `OVRO_ALERT_VOLTAGE_PIPELINE_NODELIST` | client | Slurm nodelist (default `lwacalim02`) |
+| `OVRO_ALERT_VOLTAGE_PIPELINE_BEGIN_BUFFER_SEC` | client | Seconds after obs end before job starts (default `600`) |
+| `OVRO_ALERT_VOLTAGE_PIPELINE_BEGIN_DELAY` | client | Override dynamic begin (e.g. `now+2hours`) |
+| `VOLTAGE_BEAM_SEARCH_DIR` | export | Beam raw directory (default `/lustre/ubuntu/beam01`) |
+| `VOLTAGE_BEAM_WINDOW_END_EPOCH` | export | Mtime window end (unix); set by alert client |
+| `VOLTAGE_BEAM_LOOKBACK_MIN` | export | Window width in minutes |
+| `VOLTAGE_BEAM_RA` / `VOLTAGE_BEAM_DEC` | export | Target position (degrees) |
+| `VOLTAGE_BEAM_PRODUCT_ROOT` | Slurm job | Lustre products (default `/lustre/pipeline/teng`) |
+| `VOLTAGE_BEAM_START_FROM` | export | Resume `run_pipeline.py` at step `01`–`06` |
+
+Job stdout under `/home/pipeline/slurm/voltage_beam_pipeline-JOBID.out` is parsed for resubmit. Products: `/lustre/pipeline/teng/voltage_beam_JOBID/` (step 05–06 PNGs and CSV).
+
 
 CHIME/FRB has the highest low-resolution FRB discovery rate. It is a good source of events for OVRO-LWA follow up. We need a way to receive CHIME/FRB events to:
 - Identify and send slack notification for CHIME/FRB repeaters

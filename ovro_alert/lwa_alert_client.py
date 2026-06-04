@@ -11,10 +11,14 @@ from os import environ
 from astropy.time import Time
 from ovro_alert.alert_client import AlertClient
 from ovro_alert.voltage_beam_selection import (
+    parse_sbatch_job_id,
+    resolve_voltage_pipeline_begin,
     schedule_voltage_beam_window,
     sbatch_voltage_beam_exports,
+    submit_voltage_beam_sbatch,
     voltage_beam_search_dir,
 )
+from frb_search_pipeline.slurm_schedule import dispersion_delay_s
 from mnc import control
 from observing import makesdf
 from dsautils import dsa_store
@@ -34,16 +38,15 @@ if "SLACK_TOKEN_LWA" in environ:
 else:
     cl = None
     logging.warning("No SLACK_TOKEN_LWA found. No slack updates.")
-    
-delay = lambda dm, f1, f2: 4.149 * 1e3 * dm * (f2 ** (-2) - f1 ** (-2))
+
+delay = dispersion_delay_s
 
 
 RECORDER = 'drt1'
 
-# Slurm: run voltage_beam_pipeline.job after submit_voltagebeam (default now+2hours).
-# Do not pass filename= at sbatch: the previous observation is still the newest file.
-# Export an mtime window (submit + duration) so the job picks the correct file at run time.
-VOLTAGE_PIPELINE_BEGIN_DELAY = "now+2hours"
+# Slurm: run voltage_beam_pipeline.job after submit_voltagebeam.
+# Begin time is computed from obs duration + buffer (see resolve_voltage_pipeline_begin).
+# Override with OVRO_ALERT_VOLTAGE_PIPELINE_BEGIN_DELAY (e.g. now+2hours) for ops.
 VOLTAGE_PIPELINE_NODELIST = environ.get("OVRO_ALERT_VOLTAGE_PIPELINE_NODELIST", "lwacalim02")
 
 class LWAAlertClient(AlertClient):
@@ -214,7 +217,7 @@ class LWAAlertClient(AlertClient):
         self._schedule_voltage_beam_pipeline(dd, d0)
 
     def _schedule_voltage_beam_pipeline(self, dd, duration_sec):
-        """Queue Slurm FRB pipeline (typically ``--begin=now+2hours``).
+        """Queue Slurm FRB pipeline after observation completes (+ post-obs buffer).
 
         Exports an mtime window so the job selects the voltage file for *this* observation
         when it starts, not the newest file at sbatch time (which is usually the previous run).
@@ -253,39 +256,39 @@ class LWAAlertClient(AlertClient):
             ra=ra,
             dec=dec,
         )
-        export = f"ALL,{export_body}"
         end_sec, lookback_min, start_sec = schedule_voltage_beam_window(schedule_unix, duration_sec)
         search_dir = voltage_beam_search_dir()
+        begin, begin_override = resolve_voltage_pipeline_begin(schedule_unix, duration_sec)
+        if begin_override:
+            logger.warning(
+                "Using OVRO_ALERT_VOLTAGE_PIPELINE_BEGIN_DELAY=%s (ops override; not dynamic begin)",
+                begin,
+            )
         logger.info(
             "Voltage beam pipeline: file pick at job start under %s, mtime window "
-            "[%s, %s] (lookback %s min, end epoch %s); not pinning filename at sbatch",
+            "[%s, %s] (lookback %s min, end epoch %s); sbatch begin=%s; not pinning filename",
             search_dir,
             start_sec,
             end_sec,
             lookback_min,
             end_sec,
+            begin,
         )
 
         try:
-            proc = subprocess.run(
-                [
-                    "sbatch",
-                    f"--begin={VOLTAGE_PIPELINE_BEGIN_DELAY}",
-                    f"--nodelist={VOLTAGE_PIPELINE_NODELIST}",
-                    f"--export={export}",
-                    str(job_path),
-                ],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                universal_newlines=True,
-                timeout=60,
-                check=False,
+            proc = submit_voltage_beam_sbatch(
+                export_body,
+                job_script=job_path,
+                begin=begin,
+                nodelist=VOLTAGE_PIPELINE_NODELIST,
             )
         except subprocess.TimeoutExpired:
             logger.error("sbatch timed out scheduling voltage beam pipeline")
+            self._slack_voltage_beam_failure("sbatch timed out scheduling voltage beam pipeline")
             return
         except OSError as e:
             logger.error("sbatch failed to run: %s", e)
+            self._slack_voltage_beam_failure(f"sbatch failed to run: {e}")
             return
 
         out = (proc.stdout or "").strip()
@@ -297,10 +300,40 @@ class LWAAlertClient(AlertClient):
                 out,
                 err,
             )
+            self._slack_voltage_beam_failure(
+                f"sbatch failed (exit {proc.returncode}): stdout={out!r} stderr={err!r}"
+            )
             return
+
+        job_id = parse_sbatch_job_id(out)
+        logger.info(
+            "Voltage beam sbatch: job_id=%s dm=%s duration_sec=%s begin=%s "
+            "window_end_epoch=%s lookback_min=%s search_dir=%s ra=%s dec=%s",
+            job_id,
+            dd["dm"],
+            duration_sec,
+            begin,
+            end_sec,
+            lookback_min,
+            search_dir,
+            ra,
+            dec,
+        )
         logger.info("Scheduled voltage beam pipeline: %s", out or "(no stdout)")
         if err:
             logger.debug("sbatch stderr: %s", err)
+
+    def _slack_voltage_beam_failure(self, message):
+        if cl is None:
+            return
+        try:
+            cl.chat_postMessage(
+                channel="#observing",
+                text=f"Voltage beam pipeline scheduling failed: {message}",
+                icon_emoji=":warning:",
+            )
+        except SlackApiError as e:
+            logger.debug("Slack notify failed: %s", e)
 
     def submit_powerbeam(self, dd):
         """ Submit an ASAP voltage beam observation

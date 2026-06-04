@@ -1,0 +1,25 @@
+# Reference: observing-host client stack for LWA voltage-beam *scheduling* only.
+# NOT used on lwacalim02 (pipeline runs in fasttransients — see lwa-fasttransients/environment.yml).
+#
+# Production env name: deployment (see lwa-shell/mnc_python/environment.yml).
+# Python 3.6 — do not pip install -e ovro-alert from current pyproject (requires >=3.9).
+#
+# After git pull:
+#   cd /home/pipeline/proj/ovro-alert && ./scripts/deploy_alert_client.sh
+#
+# That script sets PYTHONPATH to lwa-fasttransients/src and runs import smoke tests.
+
+name: alert-client-reference
+channels:
+  - conda-forge
+dependencies:
+  - python=3.6
+  - pip
+  - requests
+  - astropy
+  # Observing stack (installed on cluster via mnc_python, not recreated here):
+  #   mnc-python, lwa-observing, dsautils, ovro-alert (pinned wheel)
+  #
+  # Scheduling code path (no pip install of lwa-fasttransients required):
+  #   export PYTHONPATH=/home/pipeline/proj/lwa-fasttransients/src:$PYTHONPATH
+  #   source ovro-alert/scripts/alert_client_env.sh
