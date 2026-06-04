@@ -222,9 +222,11 @@ class LWAAlertClient(AlertClient):
         Exports an mtime window so the job selects the voltage file for *this* observation
         when it starts, not the newest file at sbatch time (which is usually the previous run).
 
-        Exports ``dm`` always. Exports ``time`` only when the alert included an explicit
-        ``duration``; otherwise the job derives ``--duration`` from ``dm``. Use ``time=0``
-        (manual submit_voltage_beam_file.sh default) for a full-file search.
+        Exports ``dm`` always. Does not export ``time`` — the pipeline processes the full
+        voltage recording by default (``--duration 0``). Alert ``duration`` / DM-derived
+        length is used only for the SDF observation and Slurm timing/window, not to cap
+        HDF5 conversion. Use ``time=N`` on manual sbatch only when intentionally limiting
+        processing seconds.
         """
 
         if 'dm' not in dd:
@@ -244,7 +246,7 @@ class LWAAlertClient(AlertClient):
             return
 
         schedule_unix = time.time()
-        explicit_time = float(duration_sec) if "duration" in dd else None
+        explicit_time = None
         position = dd.get("position", "0,0").split(",")
         ra = float(position[0])
         dec = float(position[1])

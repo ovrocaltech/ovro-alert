@@ -68,9 +68,10 @@ def test_schedule_voltage_beam_pipeline_exports_mtime_window_not_filename(
     assert kwargs["nodelist"] == "lwacalim02"
 
 
-def test_schedule_voltage_beam_pipeline_exports_time_when_alert_has_explicit_duration(
+def test_schedule_voltage_beam_pipeline_does_not_export_time_when_alert_has_duration(
     tmp_path, monkeypatch
 ):
+    """Alert duration sets obs length and mtime window only; pipeline uses full recording."""
     client, fake_job, lac = _client_and_fake_job(tmp_path)
     monkeypatch.setenv("OVRO_ALERT_VOLTAGE_BEAM_JOB", str(fake_job))
     monkeypatch.setenv("OVRO_ALERT_VOLTAGE_PIPELINE_NODELIST", "lwacalim02")
@@ -89,17 +90,21 @@ def test_schedule_voltage_beam_pipeline_exports_time_when_alert_has_explicit_dur
             stderr="",
         )
     )
-    with patch.object(lac, "submit_voltage_beam_sbatch", mock_sbatch):
-        client._schedule_voltage_beam_pipeline(
-            {"dm": 87.5, "position": "10,20", "duration": 450.0}, 450.0
-        )
+    fixed_t = 1_700_000_100.0
+    with patch.object(lac.time, "time", return_value=fixed_t):
+        with patch.object(lac, "submit_voltage_beam_sbatch", mock_sbatch):
+            client._schedule_voltage_beam_pipeline(
+                {"dm": 87.5, "position": "10,20", "duration": 450.0}, 450.0
+            )
 
     mock_sbatch.assert_called_once()
     export_body = mock_sbatch.call_args[0][0]
     assert "dm=87.5" in export_body
-    assert "time=450.0" in export_body
+    assert ",time=" not in export_body and not export_body.startswith("time=")
     assert "filename=" not in export_body
-    assert "VOLTAGE_BEAM_WINDOW_END_EPOCH=" in export_body
+    end, lb, _ = lac.schedule_voltage_beam_window(fixed_t, 450.0)
+    assert f"VOLTAGE_BEAM_WINDOW_END_EPOCH={end}" in export_body
+    assert f"VOLTAGE_BEAM_LOOKBACK_MIN={lb}" in export_body
 
 
 def test_schedule_skips_when_search_dir_has_no_files(tmp_path, monkeypatch, caplog):

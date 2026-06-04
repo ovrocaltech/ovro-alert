@@ -32,36 +32,36 @@ Pipeline parameters: dm=87.3 duration_sec=300 (from exported time (seconds))
     assert dur == 300.0
 
 
-def test_parse_dm_derived_duration_from_parameters():
+def test_parse_default_full_file_when_time_unset():
     text = """\
-Pipeline env: dm=1008.9138184 time=<derive from dm> filename=<auto> VOLTAGE_BEAM_WINDOW_END_EPOCH=1700005000 VOLTAGE_BEAM_LOOKBACK_MIN=34 search_dir=/lustre/ubuntu/beam01
-Pipeline parameters: dm=1008.9138184 duration_sec=1685.407 (from dm (dispersion delay + 10 s; same as lwa_alert_client.delay))
+Pipeline env: dm=1008.9138184 time=<full file> filename=<auto> VOLTAGE_BEAM_WINDOW_END_EPOCH=1700005000 VOLTAGE_BEAM_LOOKBACK_MIN=34 search_dir=/lustre/ubuntu/beam01
+Pipeline parameters: dm=1008.9138184 duration_sec=0 (full combined PSRFITS span (default; all time samples))
 """
     dm, dur = parse_voltage_beam_slurm_stdout(text)
     assert dm == pytest.approx(1008.9138184)
-    assert dur == pytest.approx(1685.407)
+    assert dur == 0.0
 
 
 def test_parse_job_log_window_and_resolved_file():
     text = """\
-Pipeline env: dm=10 time=<derive from dm> filename=<auto> VOLTAGE_BEAM_WINDOW_END_EPOCH=<unset> VOLTAGE_BEAM_LOOKBACK_MIN=120 search_dir=/lustre/ubuntu/beam01
+Pipeline env: dm=10 time=<full file> filename=<auto> VOLTAGE_BEAM_WINDOW_END_EPOCH=<unset> VOLTAGE_BEAM_LOOKBACK_MIN=120 search_dir=/lustre/ubuntu/beam01
 Resolved voltage file (auto): /lustre/ubuntu/beam01/run.raw (mtime unix=1700001000, 2023-11-14T22:30:00Z)
-Pipeline parameters: dm=10 duration_sec=600 (from dm ...)
+Pipeline parameters: dm=10 duration_sec=0 (full combined PSRFITS span (default; all time samples))
 """
     meta = parse_voltage_beam_job_log(text)
     assert meta.get("window_end_epoch") is None
     assert meta["file_mtime"] == 1700001000
     end, lb = historical_window_from_job_log(meta, slack_s=180)
     assert end == 1700001180
-    assert lb == 16
+    assert lb == 6
 
 
 def _sample_log(*extra_lines):
     lines = [
-        "Pipeline env: dm=87.3 time=300 filename=<auto> "
+        "Pipeline env: dm=87.3 time=<full file> filename=<auto> "
         "VOLTAGE_BEAM_WINDOW_END_EPOCH=1700000480 VOLTAGE_BEAM_LOOKBACK_MIN=11 "
         "search_dir=/lustre/ubuntu/beam01",
-        "Pipeline parameters: dm=87.3 duration_sec=300 (from exported time (seconds))",
+        "Pipeline parameters: dm=87.3 duration_sec=0 (full combined PSRFITS span (default; all time samples))",
         "Pipeline target: RA=83.6 Dec=22.0 lo_dm=37.3 hi_dm=137.3 lwa_fasttransients=/home/pipeline/proj/lwa-fasttransients",
     ]
     if extra_lines:
@@ -75,7 +75,7 @@ def test_build_resubmit_reuses_original_window():
     assert resume_dir is None
     assert "VOLTAGE_BEAM_WINDOW_END_EPOCH=1700000480" in export
     assert "VOLTAGE_BEAM_LOOKBACK_MIN=11" in export
-    assert "time=300" in export
+    assert ",time=" not in export and not export.startswith("time=")
     assert "filename=" not in export
     assert "VOLTAGE_BEAM_RA=83.6" in export
     assert "VOLTAGE_BEAM_DEC=22.0" in export
@@ -232,16 +232,16 @@ def test_parse_missing_dm_raises():
 def test_parse_lwa_voltage_beam_run_log_format():
     """Stdout from lwa-voltage-beam run (Phase 3+) without legacy lo_dm/hi_dm line."""
     text = """\
-Pipeline env: dm=87.3 time=300 filename=<auto> VOLTAGE_BEAM_RA=83.6 VOLTAGE_BEAM_DEC=22.0 VOLTAGE_BEAM_WINDOW_END_EPOCH=1700000480 VOLTAGE_BEAM_LOOKBACK_MIN=11 search_dir=/lustre/ubuntu/beam01
+Pipeline env: dm=87.3 time=<full file> filename=<auto> VOLTAGE_BEAM_RA=83.6 VOLTAGE_BEAM_DEC=22.0 VOLTAGE_BEAM_WINDOW_END_EPOCH=1700000480 VOLTAGE_BEAM_LOOKBACK_MIN=11 search_dir=/lustre/ubuntu/beam01
 Voltage file search: assumed window end unix=1700000480 (2023-11-14T22:08:00Z), start unix=1700003820 (2023-11-14T21:17:00Z), lookback 11 min
 Resolved voltage file (auto, window end epoch 1700000480): /lustre/ubuntu/beam01/foo.raw (mtime unix=1700000100, 2023-11-14T22:01:40Z)
-Pipeline parameters: dm=87.3 duration_sec=300 (from exported time (seconds))
+Pipeline parameters: dm=87.3 duration_sec=0 (full combined PSRFITS span (default; all time samples))
 Pipeline target: RA=83.6 Dec=22.0 lwa_fasttransients=/home/pipeline/proj/lwa-fasttransients
 lwa-voltage-beam run: /opt/devel/pipeline/envs/fasttransients/bin/python .../run_pipeline.py --voltage ...
 """
     meta = parse_voltage_beam_job_log(text)
     assert meta["dm"] == 87.3
-    assert meta["duration_sec"] == 300.0
+    assert meta["duration_sec"] == 0.0
     assert meta["ra"] == pytest.approx(83.6)
     assert meta["dec"] == pytest.approx(22.0)
     assert meta["resolved_filename"].endswith("foo.raw")

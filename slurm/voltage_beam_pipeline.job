@@ -13,10 +13,10 @@
 #
 # Runtime environment (via sbatch --export):
 #   dm — required
-#   time — optional HDF5 duration (seconds):
-#     unset — derived from dm in lwa-voltage-beam run
-#     0     — full combined PSRFITS span
-#     N>0   — cap conversion/search to N seconds
+#   time — optional HDF5 duration (seconds); omit for alert-driven jobs (full recording):
+#     unset — process all time samples (default)
+#     0     — same as unset (full combined PSRFITS span)
+#     N>0   — cap conversion/search to N seconds (manual/ops only)
 #   VOLTAGE_BEAM_RA / VOLTAGE_BEAM_DEC — required (degrees)
 #   filename — optional explicit voltage path (manual submit)
 #   VOLTAGE_BEAM_WINDOW_END_EPOCH + VOLTAGE_BEAM_LOOKBACK_MIN — mtime window (alert path)

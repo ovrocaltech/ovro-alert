@@ -111,6 +111,8 @@ lwa-voltage-beam resubmit /home/pipeline/slurm/voltage_beam_pipeline-12345.out
 
 **Alert scheduling:** Slurm `--begin` is `now + duration + 600s` (buffer), minimum 300 s lead. Ops override: `OVRO_ALERT_VOLTAGE_PIPELINE_BEGIN_DELAY=now+2hours`.
 
+**Processing duration:** Alert observation length (or DM-derived length) controls the SDF and mtime window only. The pipeline **defaults to all time samples** in the voltage file (`--duration 0`). To cap processing, set `time=N` in manual `sbatch --export` or `lwa-voltage-beam submit --duration N`.
+
 **Useful environment variables:**
 
 | Variable | Where | Purpose |
