@@ -125,10 +125,10 @@ lwa-voltage-beam resubmit /home/pipeline/slurm/voltage_beam_pipeline-12345.out
 | `VOLTAGE_BEAM_WINDOW_END_EPOCH` | export | Mtime window end (unix); set by alert client |
 | `VOLTAGE_BEAM_LOOKBACK_MIN` | export | Window width in minutes |
 | `VOLTAGE_BEAM_RA` / `VOLTAGE_BEAM_DEC` | export | Target position (degrees) |
-| `VOLTAGE_BEAM_PRODUCT_ROOT` | Slurm job | Lustre products (default `/lustre/pipeline/teng`) |
+| `VOLTAGE_BEAM_PRODUCT_ROOT` | Slurm job | Scratch and final products (default `/data02/pipeline/teng`) |
 | `VOLTAGE_BEAM_START_FROM` | export | Resume `run_pipeline.py` at step `01`–`06` |
 
-Job stdout under `/home/pipeline/slurm/voltage_beam_pipeline-JOBID.out` is parsed for resubmit. Products: `/lustre/pipeline/teng/voltage_beam_JOBID/` (step 05–06 PNGs and CSV).
+Job stdout under `/home/pipeline/slurm/voltage_beam_pipeline-JOBID.out` is parsed for resubmit. Products: `/data02/pipeline/teng/voltage_beam_JOBID/` (step 05–06 PNGs and CSV).
 
 
 CHIME/FRB has the highest low-resolution FRB discovery rate. It is a good source of events for OVRO-LWA follow up. We need a way to receive CHIME/FRB events to:

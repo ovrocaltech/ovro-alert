@@ -24,4 +24,6 @@ def test_job_no_legacy_pipeline_py():
 def test_job_keeps_product_finalize():
     text = JOB.read_text()
     assert "Moved products to" in text
+    assert "VOLTAGE_BEAM_PRODUCT_ROOT" in text
     assert "voltage_beam_${SLURM_JOB_ID" in text
+    assert "/fast/pipeline/fast" not in text

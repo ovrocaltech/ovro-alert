@@ -22,15 +22,17 @@
 #   VOLTAGE_BEAM_WINDOW_END_EPOCH + VOLTAGE_BEAM_LOOKBACK_MIN — mtime window (alert path)
 #   VOLTAGE_BEAM_START_FROM — optional run_pipeline.py step (01-06)
 #   VOLTAGE_BEAM_RESUME_FROM — optional prior workdir to copy artifacts from
-#   VOLTAGE_BEAM_SEARCH_DIR — beam raw directory (default /data02/pipeline/teng)
+#   VOLTAGE_BEAM_SEARCH_DIR — beam raw directory (default /lustre/ubuntu/beam01)
+#   VOLTAGE_BEAM_PRODUCT_ROOT — scratch + final products (default /data02/pipeline/teng)
 #
 # Examples:
 #   sbatch --begin=now+2hours --export=ALL,dm=87.3,VOLTAGE_BEAM_RA=0,VOLTAGE_BEAM_DEC=0 slurm/voltage_beam_pipeline.job
-#   sbatch --export=ALL,dm=57,time=0,filename=/data02/pipeline/teng/foo.raw,VOLTAGE_BEAM_RA=83.6,VOLTAGE_BEAM_DEC=22 slurm/voltage_beam_pipeline.job
+#   sbatch --export=ALL,dm=57,time=0,filename=/lustre/ubuntu/beam01/foo.raw,VOLTAGE_BEAM_RA=83.6,VOLTAGE_BEAM_DEC=22 slurm/voltage_beam_pipeline.job
 
 set -euo pipefail
 
-VOLTAGE_BEAM_SEARCH_DIR="${VOLTAGE_BEAM_SEARCH_DIR:-/data02/pipeline/teng}"
+VOLTAGE_BEAM_SEARCH_DIR="${VOLTAGE_BEAM_SEARCH_DIR:-/lustre/ubuntu/beam01}"
+VOLTAGE_BEAM_PRODUCT_ROOT="${VOLTAGE_BEAM_PRODUCT_ROOT:-/data02/pipeline/teng}"
 VOLTAGE_BEAM_LOOKBACK_MIN="${VOLTAGE_BEAM_LOOKBACK_MIN:-120}"
 
 : "${dm:?Set dm}"
@@ -71,9 +73,9 @@ export MPLCONFIGDIR="${cache_root}/mpl"
 mkdir -p "${HOME}/.lsl"
 chmod 700 "${HOME}/.lsl" || true
 
-workdir="/fast/pipeline/fast/voltage_beam_${SLURM_JOB_ID:-nojob}"
+workdir="${VOLTAGE_BEAM_PRODUCT_ROOT}/voltage_beam_${SLURM_JOB_ID:-nojob}"
 # SLURM job IDs eventually recycle; a prior failed run may have left partial
-# products here if the job never reached the final mv to Lustre.
+# products here if the job exited before finishing.
 if [[ -d "${workdir}" ]] && [[ -n "$(ls -A "${workdir}" 2>/dev/null)" ]]; then
   echo "Clearing stale workdir (recycled job ID or prior failed run): ${workdir}" >&2
   rm -rf "${workdir:?}"
@@ -112,15 +114,7 @@ if [[ "${run_rc}" -ne 0 ]]; then
   exit "${run_rc}"
 fi
 
-product_root="${VOLTAGE_BEAM_PRODUCT_ROOT:-/lustre/pipeline/teng}"
-product_dir="${product_root}/voltage_beam_${SLURM_JOB_ID:-nojob}"
-if [[ -e "${product_dir}" ]]; then
-  echo "Refusing to move products: destination already exists: ${product_dir}" >&2
-  exit 1
-fi
-mkdir -p "${product_root}"
-cd /
-mv "${workdir}" "${product_dir}"
+product_dir="${workdir}"
 echo "Moved products to ${product_dir}"
 
 event_pngs_root="${VOLTAGE_BEAM_EVENT_PNGS_DIR-/opt/devel/pipeline/event_pngs}"
