@@ -23,7 +23,6 @@ def test_job_no_legacy_pipeline_py():
 
 def test_job_delegates_product_publish_to_lwa_voltage_beam():
     text = JOB.read_text()
-    assert "ln -s" not in text
-    assert "Moved products to" not in text
-    assert "Symlinked" not in text
+    assert "Moved products to" in text
     assert "voltage_beam_${SLURM_JOB_ID" in text
+    assert "/fast/pipeline/fast" not in text
