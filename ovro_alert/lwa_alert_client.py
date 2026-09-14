@@ -234,9 +234,11 @@ class LWAAlertClient(AlertClient):
             if "event_mjd" in dd:
                 event_mjd = float(dd["event_mjd"])
                 command_mjd = float(dd["command_mjd"])
-                offset_sec = (event_mjd - command_mjd)*86400
+                offset_sec = (command_mjd - event_mjd)*86400
             else:
                 offset_sec = 0
+            assert offset_sec >= 0
+            
             dm = float(dd["dm"])
             d0 = delay(dm, 1e9, 50) + 10 - offset_sec # Observe for the delay plus a bit more, corrected for latency
 
