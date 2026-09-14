@@ -231,8 +231,14 @@ class LWAAlertClient(AlertClient):
             d0 = float(dd['duration'])
         else:
             assert 'dm' in dd
+            if "event_mjd" in dd:
+                event_mjd = float(dd["event_mjd"])
+                command_mjd = float(dd["command_mjd"])
+                offset_sec = (event_mjd - command_mjd)*86400
+            else:
+                offset_sec = 0
             dm = float(dd["dm"])
-            d0 = delay(dm, 1e9, 50) + 10  # Observe for the delay plus a bit more
+            d0 = delay(dm, 1e9, 50) + 10 - offset_sec # Observe for the delay plus a bit more, corrected for latency
 
         sdffile = '/tmp/trigger_voltagebeam.sdf'
         makesdf.create(sdffile, n_obs=1, sess_mode='VOLT', obs_mode='TRK_RADEC', beam_num=int(RECORDER[-1:]),
