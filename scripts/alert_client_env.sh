@@ -1,7 +1,7 @@
 # Source from bash after: conda activate deployment
 #   source /home/pipeline/proj/ovro-alert/scripts/alert_client_env.sh
 #
-# Exposes lwa-fasttransients scheduling on Python 3.6 without pip install -e ovro-alert.
+# Exposes lwa-fasttransients scheduling on PYTHONPATH (ovro-alert itself may be pip-installed).
 
 : "${OVRO_ALERT_ROOT:=/home/pipeline/proj/ovro-alert}"
 : "${LWA_FT_ROOT:=/home/pipeline/proj/lwa-fasttransients}"

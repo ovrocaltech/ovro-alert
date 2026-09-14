@@ -9,17 +9,19 @@ Two environments are intentional:
 
 | Environment | Typical host | Python | Install |
 |-------------|--------------|--------|---------|
-| **`deployment`** | Observing / calim (`LWAAlertClient`) | 3.6 | Cluster `mnc_python` env; **do not** `pip install -e .` this repo from `pyproject.toml` (requires **≥3.9**) |
+| **`deployment`** | Observing / calim (`LWAAlertClient`) | 3.6 | Cluster `mnc_python` env; `pip install -e .` (build deps stay on setuptools&lt;60 / setuptools_scm&lt;8 for 3.6) |
 | **`fasttransients`** | **lwacalim02** (Slurm pipeline) | 3.9+ | `lwa-fasttransients/scripts/deploy_calim.sh` |
 
-**Observing host (voltage-beam scheduling only):** expose `frb_search_pipeline.slurm_schedule` via `PYTHONPATH`, not a modern editable `ovro-alert` install:
+**Observing host (voltage-beam scheduling):** install/update `ovro-alert` into `deployment`, and expose `frb_search_pipeline.slurm_schedule` via `PYTHONPATH`:
 
 ```bash
 cd /home/pipeline/proj/ovro-alert
+conda activate deployment
+pip install -e .
 ./scripts/deploy_alert_client.sh
 ```
 
-That activates `deployment`, sources `scripts/alert_client_env.sh` (sets `PYTHONPATH` to `lwa-fasttransients/src`), and runs import smoke tests (including `python3.6` when available).
+That sources `scripts/alert_client_env.sh` (sets `PYTHONPATH` to `lwa-fasttransients/src`) and runs import smoke tests (including `python3.6` when available).
 
 **Persist env for systemd / long-running clients:**
 
@@ -92,7 +94,7 @@ cd /home/pipeline/proj/ovro-alert
 ./scripts/deploy_alert_client.sh
 ```
 
-Do **not** `pip install -e .` here — `pyproject.toml` requires Python ≥3.9. Scheduling uses `PYTHONPATH=${LWA_FT_ROOT}/src` (see `scripts/alert_client_env.sh`). `ovro_alert.voltage_beam_selection` re-exports `frb_search_pipeline.slurm_schedule`.
+`pip install -e .` works in the Python 3.6 `deployment` env. Scheduling also uses `PYTHONPATH=${LWA_FT_ROOT}/src` (see `scripts/alert_client_env.sh`). `ovro_alert.voltage_beam_selection` re-exports `frb_search_pipeline.slurm_schedule`.
 
 **Manual submit / resubmit** (on a host with Slurm + `fasttransients`):
 

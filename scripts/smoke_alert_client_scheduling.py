@@ -2,7 +2,7 @@
 """Import smoke for LWA alert client scheduling on deployment (Python 3.6+).
 
 Expects LWA_FT_SRC on PYTHONPATH (set by alert_client_env.sh or deploy_alert_client.sh).
-Does not require pip install -e ovro-alert (pyproject requires Python >=3.9).
+ovro-alert may be installed via pip (setuptools<60) or imported from a checkout.
 """
 from __future__ import print_function
 

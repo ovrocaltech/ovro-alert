@@ -2,7 +2,7 @@
 # NOT used on lwacalim02 (pipeline runs in fasttransients — see lwa-fasttransients/environment.yml).
 #
 # Production env name: deployment (see lwa-shell/mnc_python/environment.yml).
-# Python 3.6 — do not pip install -e ovro-alert from current pyproject (requires >=3.9).
+# Python 3.6 — pip install -e ovro-alert works (setuptools<60 / setuptools_scm<8).
 #
 # After git pull:
 #   cd /home/pipeline/proj/ovro-alert && ./scripts/deploy_alert_client.sh

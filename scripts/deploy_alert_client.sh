@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # Deploy voltage-beam alert *scheduling* on the observing host (deployment conda, Python 3.6).
 #
-# Do NOT run: pip install -e .   (ovro-alert pyproject requires Python >=3.9)
+# Before or after this script, refresh the package in deployment when needed:
+#   conda activate deployment && pip install -e /path/to/ovro-alert
 #
-# Instead:
-#   - Keep ovro-alert from the deployment env (mnc_python environment.yml pin), or
-#     use the checkout on PYTHONPATH only for ovro_alert if you manage that separately.
-#   - Expose lwa-fasttransients scheduling via PYTHONPATH (frb_search_pipeline.slurm_schedule).
+# This script:
+#   - Activates deployment
+#   - Exposes lwa-fasttransients scheduling via PYTHONPATH (frb_search_pipeline.slurm_schedule)
+#   - Runs import smoke tests
 #
 # After git pull on ovro-alert and/or lwa-fasttransients:
 #   cd /home/pipeline/proj/ovro-alert
@@ -62,4 +63,4 @@ if command -v python3.6 >/dev/null 2>&1; then
 fi
 
 echo "deploy_alert_client.sh: OK"
-echo "Reminder: do not pip install -e ${OVRO_ALERT_ROOT} into deployment (requires Python >=3.9)."
+echo "To refresh ovro-alert itself: pip install -e ${OVRO_ALERT_ROOT}"
