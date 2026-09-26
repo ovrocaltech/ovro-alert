@@ -133,7 +133,9 @@ def handle_chime_frb(alert, mission, instrument):
 
     args = {
         'position': f'{alert["ra"]},{alert["dec"]},{ra_dec_error}',
+        'event_mjd': alert['event_mjd'],
         'dm': alert['dm'],
+        'snr': alert['snr'],
         'id': alert['id'],
         'instrument': instrument,
         'mission': mission,
@@ -295,7 +297,7 @@ if __name__ == "__main__":
 
                 if "ra" not in alert or "dec" not in alert:
                     logger.info(f"Alert has no coordinates; format={alert_format}; keys={list(alert.keys())}")
-                elif mission == 'CHIME':
+                elif mission in ['CHIME', 'CHIMEOA']:
                     args, slack_msg = handle_chime_frb(alert, mission, instrument)
                     logger.info(f'Event at {event_time_str}: {slack_msg}')
                     gc.set('observation', args, route=mission.lower())
