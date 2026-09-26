@@ -232,15 +232,16 @@ class LWAAlertClient(AlertClient):
         else:
             assert 'dm' in dd
             if "event_mjd" in dd:
-                event_mjd = float(dd["event_mjd"])
-                command_mjd = float(dd["command_mjd"])
-                offset_sec = (command_mjd - event_mjd)*86400
+                event_mjd = float(dd["event_mjd"])  # assumed at freq=inf (true for CHIME)
+                now_mjd = Time.now().mjd
+                latency_sec = (now_mjd - event_mjd)*86400
             else:
-                offset_sec = 0
-            assert offset_sec >= 0
+                latency_sec = 0
+            assert latency_sec >= 0
             
             dm = float(dd["dm"])
-            d0 = delay(dm, 1e9, 50) + 10 - offset_sec # Observe for the delay plus a bit more, corrected for latency
+            d0 = delay(dm, 1e9, 50) + 10 - latency_sec # Observe for the delay plus a bit more, corrected for latency
+            assert d0 > 0
 
         sdffile = '/tmp/trigger_voltagebeam.sdf'
         makesdf.create(sdffile, n_obs=1, sess_mode='VOLT', obs_mode='TRK_RADEC', beam_num=int(RECORDER[-1:]),
