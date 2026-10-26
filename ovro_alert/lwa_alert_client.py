@@ -225,6 +225,7 @@ class LWAAlertClient(AlertClient):
         """
 
         position = dd["position"].split(",")
+        event_id = dd.get('id', 'unknown')
         ra = float(position[0])  # degrees
         dec = float(position[1])
         if 'duration' in dd:
@@ -244,7 +245,7 @@ class LWAAlertClient(AlertClient):
             assert d0 > 0
 
         sdffile = '/tmp/trigger_voltagebeam.sdf'
-        makesdf.create(sdffile, n_obs=1, sess_mode='VOLT', obs_mode='TRK_RADEC', beam_num=int(RECORDER[-1:]),
+        makesdf.create(sdffile, n_obs=1, sess_mode='VOLT', obj_name=event_id, obs_mode='TRK_RADEC', beam_num=int(RECORDER[-1:]),
                        obs_start='now', obs_dur=int(d0*1e3), int_time=0, ra=ra, dec=dec)
         # TODO: test required parameters for voltage beam from SDF
 
